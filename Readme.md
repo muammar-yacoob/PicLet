@@ -6,8 +6,9 @@
 
 <div align="center">
 
+<img src="res/imgs/banana_nobg.png" width=100>
 
-# 🖼️ PicLet - Image Tools for Windows
+# PicLet - Image Tools for Windows
 
 Handy right-click tools for everyday image tasks!
 
