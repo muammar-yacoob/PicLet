@@ -30,8 +30,9 @@ echo Installing PicLet...
 
 :: Suppress individual file copy messages
 set "files_copied=0"
-echo n | xcopy /y "%CURRENT_DIR%src\png2ico.bat" "%INSTALL_DIR%\src\" /i /q >nul && set /a "files_copied+=1"
+echo n | xcopy /y "%CURRENT_DIR%src\makeicon.bat" "%INSTALL_DIR%\src\" /i /q >nul && set /a "files_copied+=1"
 echo n | xcopy /y "%CURRENT_DIR%src\remove-bg.bat" "%INSTALL_DIR%\src\" /i /q >nul && set /a "files_copied+=1"
+echo n | xcopy /y "%CURRENT_DIR%src\rescale.bat" "%INSTALL_DIR%\src\" /i /q >nul && set /a "files_copied+=1"
 echo n | xcopy /y "%CURRENT_DIR%src\icons\*.ico" "%INSTALL_DIR%\src\icons\" /i /q >nul && set /a "files_copied+=2"
 echo n | xcopy /y "%CURRENT_DIR%src\piclet.reg" "%INSTALL_DIR%\src\" /i /q >nul && set /a "files_copied+=1"
 
@@ -55,12 +56,14 @@ echo Installation complete
 echo.
 echo * PNG to ICO conversion
 echo * PNG background removal
+echo * Image scaling
 echo.
 echo PicLet has been successfully installed to %INSTALL_DIR%
 echo.
 echo How to use:
-echo 1. Right-click on a PNG file -^> Select "Make Icon"
-echo 2. Right-click on a PNG file -^> Select "Remove Background"
+echo 1. Right-click on a PNG file -^> Select "Make Icon" (uses makeicon.ico)
+echo 2. Right-click on a PNG file -^> Select "Remove Background" (uses removebg.ico)
+echo 3. Right-click on any image file -^> Select "Scale Image" (uses rescale.ico)
 echo.
 echo You may need to restart Windows Explorer for changes to take effect.
 
