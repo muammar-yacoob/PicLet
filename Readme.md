@@ -2,7 +2,7 @@
 [privacy-link]: ./PRIVACY.md
 [coffee-link]: https://buymeacoffee.com/spark88
 [issues-link]: ../../issues
-[releases-link]: ../../releases/latest
+[fork-link]:  ../../fork
 
 <div align="center">
 
@@ -38,10 +38,9 @@ Handy right-click tools for everyday image tasks!
 - <img src="src/icons/rescale.ico" width="16" height="16"> **Scale Image**: Right-click on any image file → Select `Scale Image`
 
 ## 🌱 Support & Contributions
-If these tools save you time:
-- Please ⭐ <a href="../../stargazers" target="_blank">Star</a> to help spread useful tools.
-- <a href="[coffee-link]" target="_blank">Buy me a coffee</a> to fuel more dev tools.
-- or <a href="../../fork" target="_blank">Contribute</a> - Released under MIT license.
+Star the repo ⭐ & I power up like Mario 🍄<br>
+Devs run on [coffee][coffee-link] ☕<br>
+[contributions][fork-link] are welcome.
 
 ---
 <div align="center">
