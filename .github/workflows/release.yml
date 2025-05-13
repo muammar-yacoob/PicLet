@@ -26,15 +26,15 @@ jobs:
       - name: Install dependencies
         run: npm install -g semantic-release @semantic-release/github @semantic-release/changelog
         
-      - name: Download ImageMagick
-        run: |
-          mkdir -p libs
-          url="https://imagemagick.org/archive/binaries/ImageMagick-6.9.13-25-portable-Q16-HDRI-x64.zip"
-          wget -O imagemagick.zip "$url"
-          unzip imagemagick.zip -d temp
-          cp temp/convert.exe libs/
-          rm imagemagick.zip
-          rm -rf temp
+      # - name: Download ImageMagick
+      #   run: |
+      #     mkdir -p libs
+      #     url="https://imagemagick.org/archive/binaries/ImageMagick-6.9.13-25-portable-Q16-HDRI-x64.zip"
+      #     wget -O imagemagick.zip "$url"
+      #     unzip imagemagick.zip -d temp
+      #     cp temp/convert.exe libs/
+      #     rm imagemagick.zip
+      #     rm -rf temp
       
       - name: Create Package
         run: |
