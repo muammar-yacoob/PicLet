@@ -29,26 +29,22 @@ jobs:
       - name: Download ImageMagick
         run: |
           mkdir -p libs
-          $url = "https://imagemagick.org/archive/binaries/ImageMagick-6.9.13-25-portable-Q16-HDRI-x64.zip"
-          Invoke-WebRequest -Uri $url -OutFile "imagemagick.zip"
-          Expand-Archive -Path "imagemagick.zip" -DestinationPath "temp"
-          Copy-Item -Path "temp\convert.exe" -Destination "libs\"
-          Copy-Item -Path "temp\magick.exe" -Destination "libs\"
-          Copy-Item -Path "temp\CORE_RL_*.dll" -Destination "libs\"
-          Copy-Item -Path "temp\IM_MOD_RL_*.dll" -Destination "libs\"
-          Copy-Item -Path "temp\*.dll" -Destination "libs\"
-          Remove-Item -Path "imagemagick.zip" -Force
-          Remove-Item -Path "temp" -Recurse -Force
+          url="https://imagemagick.org/archive/binaries/ImageMagick-6.9.13-25-portable-Q16-HDRI-x64.zip"
+          wget -O imagemagick.zip "$url"
+          unzip imagemagick.zip -d temp
+          cp temp/convert.exe libs/
+          rm imagemagick.zip
+          rm -rf temp
       
       - name: Create Package
         run: |
           mkdir -p release/src/icons release/libs
-          Copy-Item -Path "install_piclet.bat" -Destination "release\"
-          Copy-Item -Path "uninstall_piclet.bat" -Destination "release\"
-          Copy-Item -Path "src\*" -Destination "release\src\" -Recurse
-          Copy-Item -Path "libs\*" -Destination "release\libs\" -Recurse
-          Copy-Item -Path "Readme.md" -Destination "release\"
-          Compress-Archive -Path "release\*" -DestinationPath "PicLet.zip"
+          cp install_piclet.bat release/
+          cp uninstall_piclet.bat release/
+          cp -r src/* release/src/
+          cp -r libs/* release/libs/
+          cp Readme.md release/
+          zip -r PicLet.zip release/*
 
       - name: Semantic Release
         env:
