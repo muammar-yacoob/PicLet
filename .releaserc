@@ -1,0 +1,16 @@
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/changelog",
+    ["@semantic-release/github", {
+      "assets": [
+        {"path": "PicLet.zip", "label": "PicLet Package"},
+        {"path": "CHANGELOG.md", "label": "Changelog"}
+      ],
+      "successComment": "This ${issue.pull_request ? 'pull request' : 'issue'} is included in version ${nextRelease.version}",
+      "failComment": "The release from branch ${branch.name} failed due to the following errors:\n- ${errors.map(err => err.message).join('\\n- ')}"
+    }]
+  ]
+} 

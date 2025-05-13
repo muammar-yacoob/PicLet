@@ -1,0 +1,17 @@
+Windows Registry Editor Version 5.00
+
+; Make Icon
+[HKEY_CLASSES_ROOT\SystemFileAssociations\.png\Shell\MakeIcon]
+@="Make Icon"
+"Icon"="C:\\Program Files\\PicLet\\src\\icons\\png2icon.ico"
+
+[HKEY_CLASSES_ROOT\SystemFileAssociations\.png\Shell\MakeIcon\command]
+@="\"C:\\Program Files\\PicLet\\src\\png2ico.bat\" \"%1\""
+
+; Remove Background
+[HKEY_CLASSES_ROOT\SystemFileAssociations\.png\Shell\RemoveBackground]
+@="Remove Background"
+"Icon"="C:\\Program Files\\PicLet\\src\\icons\\removebg.ico"
+
+[HKEY_CLASSES_ROOT\SystemFileAssociations\.png\Shell\RemoveBackground\command]
+@="\"C:\\Program Files\\PicLet\\src\\remove-bg.bat\" \"%1\""
