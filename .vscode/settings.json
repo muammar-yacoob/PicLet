@@ -1,7 +1,7 @@
 {
-  "files.exclude": {
-    "res": true,
-    "PRIVACY.md": true,
-    "LICENSE": true
-  }
+	"files.exclude": {
+		"res": true,
+		"PRIVACY.md": true,
+		"LICENSE": true
+	}
 }
