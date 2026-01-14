@@ -138,3 +138,18 @@ export function onCancel(): void {
 
 // Set up cancel handler
 prompts.override({});
+
+/**
+ * Pause and wait for user to press Enter (useful for errors in batch mode)
+ * Only pauses when running with -y flag so user can see error messages
+ */
+export async function pauseOnError(message = 'Press Enter to close...'): Promise<void> {
+	if (!useDefaults) return; // Interactive mode - no need to pause
+
+	console.log();
+	await prompts({
+		type: 'text',
+		name: 'value',
+		message,
+	});
+}

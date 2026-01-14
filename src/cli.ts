@@ -46,56 +46,102 @@ function getDistDir(): string {
 	return dirname(currentFile);
 }
 
-/** Get registry base path for a tool and extension */
-function getRegistryBasePath(extension: string, toolName: string): string {
-	return `HKCU\\Software\\Classes\\SystemFileAssociations\\${extension}\\shell\\${toolName}`;
+/** Get registry base path for PicLet menu on an extension */
+function getMenuBasePath(extension: string): string {
+	return `HKCU\\Software\\Classes\\SystemFileAssociations\\${extension}\\shell\\PicLet`;
 }
 
-/** Register a single tool for a single extension */
-async function registerToolForExtension(
-	tool: ToolConfig,
+/** Get all unique extensions from tools */
+function getAllExtensions(): string[] {
+	const extensions = new Set<string>();
+	for (const { config } of tools) {
+		for (const ext of config.extensions) {
+			extensions.add(ext);
+		}
+	}
+	return Array.from(extensions);
+}
+
+/** Get tools that support a given extension */
+function getToolsForExtension(extension: string) {
+	return tools.filter((t) => t.config.extensions.includes(extension));
+}
+
+/** Register PicLet menu for a single extension */
+async function registerMenuForExtension(
 	extension: string,
 	iconsDir: string,
-): Promise<RegistrationResult> {
-	const basePath = getRegistryBasePath(extension, tool.name);
+): Promise<RegistrationResult[]> {
+	const results: RegistrationResult[] = [];
+	const basePath = getMenuBasePath(extension);
 	const iconsDirWin = wslToWindows(iconsDir);
+	const extensionTools = getToolsForExtension(extension);
 
-	const shellSuccess = await addRegistryKey(basePath, '', tool.name);
-	const iconPath = `${iconsDirWin}\\${tool.icon}`;
-	const iconSuccess = await addRegistryKey(basePath, 'Icon', iconPath);
+	// Create parent PicLet menu
+	await addRegistryKey(basePath, 'MUIVerb', 'PicLet');
+	await addRegistryKey(basePath, 'Icon', `${iconsDirWin}\\banana.ico`);
+	await addRegistryKey(basePath, 'SubCommands', '');
 
-	// Enable multi-select: passes all selected files to one command
-	await addRegistryKey(basePath, 'MultiSelectModel', 'Player');
+	// Create submenu for each tool
+	for (const { config } of extensionTools) {
+		const toolPath = `${basePath}\\shell\\${config.id}`;
 
-	// Command with -y flag for batch mode
-	const commandValue = `wsl piclet ${tool.id} "%1" -y`;
-	const cmdSuccess = await addRegistryKey(
-		`${basePath}\\command`,
-		'',
-		commandValue,
-	);
+		const menuSuccess = await addRegistryKey(toolPath, 'MUIVerb', config.name);
+		const iconSuccess = await addRegistryKey(
+			toolPath,
+			'Icon',
+			`${iconsDirWin}\\${config.icon}`,
+		);
 
-	return {
-		extension,
-		toolName: tool.name,
-		success: shellSuccess && iconSuccess && cmdSuccess,
-	};
+		// Enable multi-select
+		await addRegistryKey(toolPath, 'MultiSelectModel', 'Player');
+
+		// Command - %1 must be outside quotes so Windows expands it
+		const commandValue = `wsl piclet ${config.id} "%1" -y`;
+		const cmdSuccess = await addRegistryKey(
+			`${toolPath}\\command`,
+			'',
+			commandValue,
+		);
+
+		results.push({
+			extension,
+			toolName: config.name,
+			success: menuSuccess && iconSuccess && cmdSuccess,
+		});
+	}
+
+	return results;
 }
 
-/** Unregister a single tool for a single extension */
-async function unregisterToolForExtension(
-	tool: ToolConfig,
+/** Unregister PicLet menu for a single extension */
+async function unregisterMenuForExtension(
 	extension: string,
-): Promise<RegistrationResult> {
-	const basePath = getRegistryBasePath(extension, tool.name);
-	await deleteRegistryKey(`${basePath}\\command`);
-	const success = await deleteRegistryKey(basePath);
+): Promise<RegistrationResult[]> {
+	const results: RegistrationResult[] = [];
+	const basePath = getMenuBasePath(extension);
+	const extensionTools = getToolsForExtension(extension);
 
-	return {
-		extension,
-		toolName: tool.name,
-		success,
-	};
+	// Delete each tool's submenu
+	for (const { config } of extensionTools) {
+		const toolPath = `${basePath}\\shell\\${config.id}`;
+		await deleteRegistryKey(`${toolPath}\\command`);
+		const success = await deleteRegistryKey(toolPath);
+
+		results.push({
+			extension,
+			toolName: config.name,
+			success,
+		});
+	}
+
+	// Delete the shell container
+	await deleteRegistryKey(`${basePath}\\shell`);
+
+	// Delete parent PicLet menu
+	await deleteRegistryKey(basePath);
+
+	return results;
 }
 
 /** Register all tools */
@@ -105,15 +151,9 @@ async function registerAllTools(
 	const iconsDir = join(distDir, 'icons');
 	const results: RegistrationResult[] = [];
 
-	for (const { config } of tools) {
-		for (const extension of config.extensions) {
-			const result = await registerToolForExtension(
-				config,
-				extension,
-				iconsDir,
-			);
-			results.push(result);
-		}
+	for (const extension of getAllExtensions()) {
+		const extResults = await registerMenuForExtension(extension, iconsDir);
+		results.push(...extResults);
 	}
 
 	return results;
@@ -123,11 +163,9 @@ async function registerAllTools(
 async function unregisterAllTools(): Promise<RegistrationResult[]> {
 	const results: RegistrationResult[] = [];
 
-	for (const { config } of tools) {
-		for (const extension of config.extensions) {
-			const result = await unregisterToolForExtension(config, extension);
-			results.push(result);
-		}
+	for (const extension of getAllExtensions()) {
+		const extResults = await unregisterMenuForExtension(extension);
+		results.push(...extResults);
 	}
 
 	return results;
@@ -295,6 +333,11 @@ program
 			);
 			return;
 		}
+
+		// Clean up existing entries first
+		console.log(chalk.dim('Removing old entries...'));
+		await unregisterAllTools();
+		console.log();
 
 		const results = await registerAllTools(getDistDir());
 		const successCount = results.filter((r) => r.success).length;

@@ -23,7 +23,7 @@ import {
 	squarify,
 } from '../lib/magick.js';
 import { getFileInfo, normalizePath } from '../lib/paths.js';
-import { multiSelect as promptMultiSelect } from '../lib/prompts.js';
+import { multiSelect as promptMultiSelect, pauseOnError } from '../lib/prompts.js';
 
 // Icon definitions for each platform
 interface IconDef {
@@ -155,6 +155,7 @@ export async function run(inputRaw: string): Promise<boolean> {
 	if (!(await checkImageMagick())) {
 		error('ImageMagick not found. Please install it:');
 		console.log('  sudo apt update && sudo apt install imagemagick');
+		await pauseOnError();
 		return false;
 	}
 
@@ -163,6 +164,7 @@ export async function run(inputRaw: string): Promise<boolean> {
 
 	if (!existsSync(input)) {
 		error(`File not found: ${input}`);
+		await pauseOnError();
 		return false;
 	}
 
@@ -307,7 +309,7 @@ export async function run(inputRaw: string): Promise<boolean> {
 
 export const config = {
 	id: 'iconpack',
-	name: 'PicLet: Generate Icon Pack',
+	name: 'Icon Pack',
 	icon: 'iconpack.ico',
 	extensions: ['.png', '.jpg', '.jpeg'],
 };

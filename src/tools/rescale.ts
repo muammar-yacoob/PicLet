@@ -21,6 +21,7 @@ import { getFileInfo, normalizePath } from '../lib/paths.js';
 import {
 	confirm as promptConfirm,
 	number as promptNumber,
+	pauseOnError,
 } from '../lib/prompts.js';
 
 /**
@@ -31,6 +32,7 @@ export async function run(inputRaw: string): Promise<boolean> {
 	if (!(await checkImageMagick())) {
 		error('ImageMagick not found. Please install it:');
 		console.log('  sudo apt update && sudo apt install imagemagick');
+		await pauseOnError();
 		return false;
 	}
 
@@ -39,6 +41,7 @@ export async function run(inputRaw: string): Promise<boolean> {
 
 	if (!existsSync(input)) {
 		error(`File not found: ${input}`);
+		await pauseOnError();
 		return false;
 	}
 
@@ -141,7 +144,7 @@ export async function run(inputRaw: string): Promise<boolean> {
 
 export const config = {
 	id: 'rescale',
-	name: 'PicLet: Scale Image',
+	name: 'Scale Image',
 	icon: 'rescale.ico',
 	extensions: ['.png', '.jpg', '.jpeg', '.gif', '.bmp'],
 };

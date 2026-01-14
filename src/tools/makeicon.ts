@@ -10,6 +10,7 @@ import {
 	trim,
 } from '../lib/magick.js';
 import { getFileInfo, normalizePath } from '../lib/paths.js';
+import { pauseOnError } from '../lib/prompts.js';
 
 /**
  * Convert PNG to ICO with multiple resolutions
@@ -19,6 +20,7 @@ export async function run(inputRaw: string): Promise<boolean> {
 	if (!(await checkImageMagick())) {
 		error('ImageMagick not found. Please install it:');
 		console.log('  sudo apt update && sudo apt install imagemagick');
+		await pauseOnError();
 		return false;
 	}
 
@@ -27,6 +29,7 @@ export async function run(inputRaw: string): Promise<boolean> {
 
 	if (!existsSync(input)) {
 		error(`File not found: ${input}`);
+		await pauseOnError();
 		return false;
 	}
 
@@ -94,7 +97,7 @@ export async function run(inputRaw: string): Promise<boolean> {
 
 export const config = {
 	id: 'makeicon',
-	name: 'PicLet: Make Icon',
+	name: 'Make Icon',
 	icon: 'makeicon.ico',
 	extensions: ['.png'],
 };
