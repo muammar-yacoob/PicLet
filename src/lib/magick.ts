@@ -6,6 +6,18 @@ import { promisify } from 'node:util';
 const execAsync = promisify(exec);
 
 /**
+ * Get input path with frame selector for multi-frame formats (ICO, GIF)
+ * ICO files contain multiple resolutions - [0] selects the largest
+ */
+function getInputSelector(imagePath: string): string {
+	const lowerPath = imagePath.toLowerCase();
+	if (lowerPath.endsWith('.ico')) {
+		return `"${imagePath}[0]"`;
+	}
+	return `"${imagePath}"`;
+}
+
+/**
  * Check if ImageMagick is installed
  */
 export async function checkImageMagick(): Promise<boolean> {
@@ -25,8 +37,9 @@ export async function getDimensions(
 	imagePath: string,
 ): Promise<[number, number] | null> {
 	try {
+		const input = getInputSelector(imagePath);
 		const { stdout } = await execAsync(
-			`convert "${imagePath}" -ping -format "%w %h" info:`,
+			`convert ${input} -ping -format "%w %h" info:`,
 		);
 		const [w, h] = stdout.trim().split(' ').map(Number);
 		if (Number.isNaN(w) || Number.isNaN(h)) return null;
@@ -43,8 +56,9 @@ export async function getBorderColor(
 	imagePath: string,
 ): Promise<string | null> {
 	try {
+		const input = getInputSelector(imagePath);
 		const { stdout } = await execAsync(
-			`convert "${imagePath}" -format "%[pixel:u.p{0,0}]" info:`,
+			`convert ${input} -format "%[pixel:u.p{0,0}]" info:`,
 		);
 		return stdout.trim();
 	} catch {
@@ -60,7 +74,8 @@ export async function trim(
 	outputPath: string,
 ): Promise<boolean> {
 	try {
-		await execAsync(`convert "${inputPath}" -trim +repage "${outputPath}"`);
+		const input = getInputSelector(inputPath);
+		await execAsync(`convert ${input} -trim +repage "${outputPath}"`);
 		return true;
 	} catch {
 		return false;
@@ -88,10 +103,11 @@ export async function squarify(
 	}
 
 	const size = Math.max(width, height);
+	const input = getInputSelector(inputPath);
 
 	try {
 		await execAsync(
-			`convert "${inputPath}" -background none -gravity center -extent ${size}x${size} "${outputPath}"`,
+			`convert ${input} -background none -gravity center -extent ${size}x${size} "${outputPath}"`,
 		);
 		return true;
 	} catch {
@@ -184,8 +200,9 @@ export async function removeBackground(
 	fuzz: number,
 ): Promise<boolean> {
 	try {
+		const input = getInputSelector(inputPath);
 		await execAsync(
-			`convert "${inputPath}" -fuzz ${fuzz}% -transparent "${color}" "${outputPath}"`,
+			`convert ${input} -fuzz ${fuzz}% -transparent "${color}" "${outputPath}"`,
 		);
 		return true;
 	} catch {
@@ -203,8 +220,9 @@ export async function removeBackgroundBorderOnly(
 	fuzz: number,
 ): Promise<boolean> {
 	try {
+		const input = getInputSelector(inputPath);
 		await execAsync(
-			`convert "${inputPath}" -bordercolor "${color}" -border 1x1 -fill none -fuzz ${fuzz}% -draw "matte 0,0 floodfill" -shave 1x1 "${outputPath}"`,
+			`convert ${input} -bordercolor "${color}" -border 1x1 -fill none -fuzz ${fuzz}% -draw "matte 0,0 floodfill" -shave 1x1 "${outputPath}"`,
 		);
 		return true;
 	} catch {

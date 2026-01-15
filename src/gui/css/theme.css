@@ -37,9 +37,9 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;hei
 .opt{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txt2);cursor:pointer;height:fit-content}
 .opt:hover{color:var(--txt)}
 .opt input{display:none}
-.box{width:16px;height:16px;background:var(--bg2);border:1px solid var(--brd);border-radius:4px;display:grid;place-items:center;flex-shrink:0}
+.box{width:16px;height:16px;background:var(--bg2);border:1px solid var(--brd);border-radius:4px;display:grid;place-items:center;flex-shrink:0;transition:all .15s}
 .opt input:checked+.box{background:var(--acc);border-color:var(--acc)}
-.box svg{width:10px;height:10px;stroke:var(--bg);stroke-width:2.5;opacity:0}
+.box svg{width:10px;height:10px;fill:none;stroke:#000;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .15s}
 .opt input:checked+.box svg{opacity:1}
 
 /* Buttons - anchored bottom */
@@ -77,5 +77,12 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;hei
 /* Warning/info box */
 .warn-box{display:none;font-size:10px;color:#ca8a04;background:rgba(202,138,4,0.1);padding:6px 8px;border-radius:4px;text-align:center}
 .warn-box.on{display:block}
+
+/* Tooltips */
+.opt{position:relative}
+.opt[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--bg3);color:var(--txt2);font-size:10px;padding:4px 8px;border-radius:4px;white-space:nowrap;margin-bottom:4px;z-index:10;pointer-events:none}
+.opt[data-tip]:hover::before{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:var(--bg3);margin-bottom:-4px;z-index:10}
+.row[data-tip]{position:relative}
+.row[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--bg3);color:var(--txt2);font-size:10px;padding:4px 8px;border-radius:4px;white-space:nowrap;margin-bottom:4px;z-index:10;pointer-events:none}
 
 .hide{display:none!important}

@@ -442,5 +442,5 @@ export const config = {
 	id: 'remove-bg',
 	name: 'Remove Background',
 	icon: 'removebg.ico',
-	extensions: ['.png', '.jpg', '.jpeg'],
+	extensions: ['.png', '.jpg', '.jpeg', '.ico'],
 };

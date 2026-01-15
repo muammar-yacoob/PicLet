@@ -76,10 +76,12 @@ const tuiTools = ['makeicon', 'remove-bg', 'rescale', 'iconpack', 'storepack'];
 async function registerMenuForExtension(
 	extension: string,
 	iconsDir: string,
+	launcherPath: string,
 ): Promise<RegistrationResult[]> {
 	const results: RegistrationResult[] = [];
 	const basePath = getMenuBasePath(extension);
 	const iconsDirWin = wslToWindows(iconsDir);
+	const launcherWin = wslToWindows(launcherPath);
 	const extensionTools = getToolsForExtension(extension);
 
 	// Create parent PicLet menu
@@ -101,14 +103,14 @@ async function registerMenuForExtension(
 		// Enable multi-select
 		await addRegistryKey(toolPath, 'MultiSelectModel', 'Player');
 
-		// Command - GUI tools open window, others run headless
+		// Command - use VBScript launcher for hidden cmd.exe window
 		let commandValue: string;
 		if (tuiTools.includes(config.id)) {
 			// GUI mode - opens Edge app window
-			commandValue = `cmd /c wsl piclet ${config.id} "%1" -g`;
+			commandValue = `wscript.exe //B "${launcherWin}" ${config.id} "%1" -g`;
 		} else {
 			// Run headless with defaults
-			commandValue = `wsl piclet ${config.id} "%1" -y`;
+			commandValue = `wscript.exe //B "${launcherWin}" ${config.id} "%1" -y`;
 		}
 		const cmdSuccess = await addRegistryKey(
 			`${toolPath}\\command`,
@@ -161,10 +163,15 @@ async function registerAllTools(
 	distDir: string,
 ): Promise<RegistrationResult[]> {
 	const iconsDir = join(distDir, 'icons');
+	const launcherPath = join(distDir, 'launcher.vbs');
 	const results: RegistrationResult[] = [];
 
 	for (const extension of getAllExtensions()) {
-		const extResults = await registerMenuForExtension(extension, iconsDir);
+		const extResults = await registerMenuForExtension(
+			extension,
+			iconsDir,
+			launcherPath,
+		);
 		results.push(...extResults);
 	}
 

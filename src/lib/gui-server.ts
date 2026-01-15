@@ -10,15 +10,30 @@ import express from 'express';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
+ * Signal the loading HTA to close by creating a temp file
+ */
+function signalReady(): void {
+	// Write ready signal to Windows temp directory
+	spawn('cmd.exe', ['/c', 'echo.>', '%TEMP%\\piclet-ready.tmp'], {
+		stdio: 'ignore',
+		windowsHide: true,
+	});
+}
+
+/**
  * Open URL in Edge app mode (standalone window without browser UI)
  */
 function openAppWindow(url: string): void {
-	// Launch Edge in app mode - window sizing handled by JS in the page
+	// Use cmd.exe with start command - windowsHide hides the cmd window
+	// The start command launches Edge which creates its own visible window
 	spawn('cmd.exe', ['/c', 'start', '""', 'msedge', `--app=${url}`], {
 		detached: true,
 		stdio: 'ignore',
 		windowsHide: true,
 	}).unref();
+
+	// Signal loading window to close after a brief delay for Edge to appear
+	setTimeout(signalReady, 500);
 }
 
 export interface GuiServerOptions {
