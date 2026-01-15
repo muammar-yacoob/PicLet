@@ -36,14 +36,8 @@
       <span class="value" id="oN">-</span>
     </div>
     <div class="opts">
-      <label class="opt" data-tip="Remove solid background color before conversion"><input type="checkbox" id="cB"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Remove BG</label>
       <label class="opt" data-tip="Remove transparent edges around the image"><input type="checkbox" id="cT" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Auto-trim</label>
       <label class="opt" data-tip="Add transparent padding to make a square icon"><input type="checkbox" id="cS" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Make square</label>
-    </div>
-    <div class="row" id="fuzzRow" style="display:none" data-tip="Color matching sensitivity (higher = more colors removed)">
-      <label>Fuzz</label>
-      <input type="number" id="fN" min="0" max="100" value="10">
-      <input type="range" id="fR" min="0" max="100" value="10">
     </div>
     <div class="btns">
       <button class="btn btn-g" onclick="PicLet.close()">Cancel</button>
@@ -66,33 +60,13 @@
 <script>
 const { $, log, fetchJson, postJson } = PicLet;
 const pA = $('pA'), pI = $('pI');
-const fN = $('fN'), fR = $('fR'), fuzzRow = $('fuzzRow');
 
 let previewTimeout = null;
 let lastPreviewOpts = null;
-let isSliding = false;
-
-// Sync fuzz slider and input
-fN.oninput = () => { fR.value = fN.value; schedulePreview(); };
-fR.oninput = () => { fN.value = fR.value; };
-fR.addEventListener('mousedown', () => { isSliding = true; });
-fR.addEventListener('mouseup', () => { isSliding = false; schedulePreview(); });
-fR.addEventListener('mouseleave', () => { if (isSliding) { isSliding = false; schedulePreview(); } });
-
-// Toggle fuzz row visibility and resize window
-$('cB').onchange = () => {
-  const show = $('cB').checked;
-  fuzzRow.style.display = show ? 'flex' : 'none';
-  // Resize window: 420 base + 50 for fuzz row
-  window.resizeTo(400, show ? 470 : 420);
-  schedulePreview();
-};
 
 // Get current options
 function getOptions() {
   return {
-    removeBg: $('cB').checked,
-    fuzz: +fN.value || 10,
     trim: $('cT').checked,
     makeSquare: $('cS').checked
   };
@@ -108,10 +82,9 @@ function optionsChanged() {
 
 // Schedule preview (debounced)
 function schedulePreview() {
-  if (isSliding) return;
   if (previewTimeout) clearTimeout(previewTimeout);
   previewTimeout = setTimeout(() => {
-    if (!isSliding && optionsChanged()) {
+    if (optionsChanged()) {
       generatePreview();
     }
   }, 300);

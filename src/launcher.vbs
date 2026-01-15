@@ -15,11 +15,11 @@ filePath = args(1)
 
 ' Get the directory where this script is located
 scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
-loadingPs1 = scriptDir & "\gui\loading.ps1"
+loadingHta = scriptDir & "\gui\loading.hta"
 
-' Show frameless loading window using PowerShell WPF (0 = hidden console)
-If fso.FileExists(loadingPs1) Then
-    WshShell.Run "powershell -ExecutionPolicy Bypass -NoProfile -NonInteractive -File """ & loadingPs1 & """", 0, False
+' Show frameless loading window immediately using HTA
+If fso.FileExists(loadingHta) Then
+    WshShell.Run "mshta """ & loadingHta & """", 1, False
 End If
 
 ' Convert Windows path to WSL path format
