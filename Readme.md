@@ -10,9 +10,10 @@
 
 # PicLet
 
-**Image manipulation utility toolkit with Windows shell integration**
+**Professional image manipulation toolkit • CLI, GUI, and Web**
 
 [![npm version](https://img.shields.io/npm/v/@spark-apps/piclet?color=blue)](https://www.npmjs.com/package/@spark-apps/piclet)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/muammar-yacoob?label=Sponsor&logo=github-sponsors&logoColor=white&color=pink)](https://github.com/sponsors/muammar-yacoob)
 [![Buy Me Coffee](https://img.shields.io/badge/Buy%20Me-Coffee-green?logo=buy-me-a-coffee&logoColor=white)][coffee-link]
 [![Report Bug](https://img.shields.io/badge/Report-Bug-red?logo=github&logoColor=white)][issues-link]
 
@@ -20,14 +21,76 @@
 
 ---
 
-## Features
+## 🌐 Try PicLet Online
 
-| Tool | Description | Formats |
-|------|-------------|---------|
-| **Make Icon** | Convert images to ICO with multiple resolutions (256, 128, 64, 48, 32, 16) | PNG |
-| **Remove Background** | Remove solid backgrounds with configurable fuzz tolerance | PNG |
-| **Scale Image** | Resize images with optional square padding | PNG, JPG, GIF, BMP |
-| **Icon Pack** | Generate complete icon sets for Web, Android, and iOS | PNG, JPG |
+**[piclet.app](https://piclet.app)** - Use all tools directly in your browser. No installation, 100% client-side processing, your images never leave your device.
+
+---
+
+## Tools & Features
+
+<table>
+<thead>
+<tr>
+<th width="80" align="center">Tool</th>
+<th>Description</th>
+<th>Formats</th>
+<th>Available In</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center"><img src="src/icons/makeicon.ico" width="48" alt="Make Icon"></td>
+<td><strong>Make Icon</strong><br>Convert images to ICO with multiple resolutions (256, 128, 64, 48, 32, 16)</td>
+<td>PNG</td>
+<td>CLI, GUI, Web</td>
+</tr>
+<tr>
+<td align="center"><img src="src/icons/removebg.ico" width="48" alt="Remove BG"></td>
+<td><strong>Remove Background</strong><br>Remove solid backgrounds with configurable fuzz tolerance</td>
+<td>PNG</td>
+<td>CLI, GUI, Web</td>
+</tr>
+<tr>
+<td align="center"><img src="src/icons/rescale.ico" width="48" alt="Scale"></td>
+<td><strong>Scale Image</strong><br>Resize images with optional square padding</td>
+<td>PNG, JPG, GIF, BMP</td>
+<td>CLI, GUI, Web</td>
+</tr>
+<tr>
+<td align="center"><img src="src/icons/iconpack.ico" width="48" alt="Icon Pack"></td>
+<td><strong>Icon Pack</strong><br>Generate complete icon sets for Web, Android, and iOS</td>
+<td>PNG, JPG</td>
+<td>CLI, GUI, Web</td>
+</tr>
+<tr>
+<td align="center"><img src="src/icons/storepack.ico" width="48" alt="Store Assets"></td>
+<td><strong>Store Assets</strong><br>Generate graphics for Steam, itch.io, Unity Asset Store, and app stores</td>
+<td>PNG, JPG</td>
+<td>GUI, Web</td>
+</tr>
+</tbody>
+</table>
+
+---
+
+## Screenshots
+
+### GUI Desktop App (Windows)
+
+<div align="center">
+<img src="demo/demo.png" alt="PicLet GUI Preview" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+<p><em>All tools in one intuitive interface with real-time preview</em></p>
+</div>
+
+### CLI (Command Line)
+
+<div align="center">
+<img src="demo/cli.jpg" alt="PicLet CLI Preview" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 600px;">
+<p><em>Fast command-line image processing for batch operations</em></p>
+</div>
+
+---
 
 ## Installation
 
@@ -37,20 +100,26 @@
 npm install -g @spark-apps/piclet
 ```
 
-This automatically registers the Windows context menu entries.
+This automatically registers the Windows context menu entries for GUI access.
 
 ### Requirements
 
-- **WSL** (Windows Subsystem for Linux)
+- **Windows** with WSL (Windows Subsystem for Linux)
 - **ImageMagick** in WSL:
   ```bash
   sudo apt update && sudo apt install imagemagick
   ```
 - **Node.js** >= 18
 
+---
+
 ## Usage
 
-### Context Menu
+### 🌐 Web Version (Easiest)
+
+Visit **[piclet.app](https://piclet.app)** - No installation required, works in any modern browser.
+
+### 🖱️ GUI (Right-Click Context Menu)
 
 Right-click any supported image file in Windows Explorer to see PicLet options:
 
@@ -58,7 +127,7 @@ Right-click any supported image file in Windows Explorer to see PicLet options:
 <img src="res/imgs/menu.png" style="border: 1px solid #eee; border-radius: 4px; max-width: 500px;" alt="PicLet Menu">
 </div>
 
-### Command Line
+### ⌨️ CLI (Command Line)
 
 ```bash
 # Convert PNG to ICO
@@ -72,6 +141,9 @@ piclet scale image.jpg
 
 # Generate icon pack for all platforms
 piclet iconpack app-icon.png
+
+# Generate store assets (GUI only - opens GUI with preset)
+piclet storepack image.png
 ```
 
 ### Manual Registry Management
@@ -112,11 +184,11 @@ When you run `piclet iconpack`, it generates:
 
 ## Support & Contributions
 
-Star the repo and I power up like Mario!
+⭐ Star the repo and I power up like Mario!
 
-Devs run on [coffee][coffee-link].
+☕ Devs run on [coffee][coffee-link].
 
-[Contributions][fork-link] are welcome.
+🤝 [Contributions][fork-link] are welcome.
 
 ---
 
