@@ -177,5 +177,5 @@ When you run `piclet iconpack`, it generates:
 ---
 
 <div align="center">
-<sub>Released under MIT License | <a href="./PRIVACY.md">Privacy Policy</a></sub>
+<sub>Released under <a href="./LICENSE">AGPL-3.0 License</a> | <a href="./PRIVACY.md">Privacy Policy</a> | Powered by <a href="https://imagemagick.org">ImageMagick</a></sub>
 </div>

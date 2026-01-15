@@ -35,32 +35,6 @@ jobs:
       - name: Install semantic-release plugins
         run: npm install -g semantic-release @semantic-release/github @semantic-release/changelog @semantic-release/npm @semantic-release/git
 
-      - name: Create Legacy Package (for backwards compatibility)
-        run: |
-          mkdir -p release/src/icons
-
-          # Copy installers
-          cp install_piclet.bat release/
-          cp uninstall_piclet.bat release/
-
-          # Copy batch wrappers
-          cp src/*.bat release/src/
-
-          # Copy shell scripts
-          cp src/*.sh release/src/
-
-          # Copy registry file
-          cp src/piclet.reg release/src/
-
-          # Copy icons
-          cp src/icons/*.ico release/src/icons/
-
-          # Copy docs
-          cp Readme.md release/
-
-          # Create zip
-          cd release && zip -r ../PicLet.zip . && cd ..
-
       - name: Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -8,11 +8,8 @@
       "npmPublish": true
     }],
     ["@semantic-release/github", {
-      "assets": [
-        {"path": "PicLet.zip", "label": "PicLet Package"},
-        {"path": "CHANGELOG.md", "label": "Changelog"}
-      ],
-      "successComment": "This ${issue.pull_request ? 'pull request' : 'issue'} is included in version ${nextRelease.version}",
+      "assets": false,
+      "successComment": "Released in version ${nextRelease.version}\n\nInstall: `npm install -g @spark-apps/piclet`\nhttps://www.npmjs.com/package/@spark-apps/piclet",
       "failComment": "The release from branch ${branch.name} failed due to the following errors:\n- ${errors.map(err => err.message).join('\\n- ')}"
     }],
     ["@semantic-release/git", {
