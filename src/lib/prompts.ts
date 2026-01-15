@@ -3,6 +3,9 @@ import prompts from 'prompts';
 /** When true, all prompts return their default values without user interaction */
 let useDefaults = false;
 
+/** Override values from CLI arguments - keyed by prompt message substring */
+const overrides: Record<string, string | number | boolean | string[]> = {};
+
 /**
  * Enable or disable default mode (for --yes flag)
  */
@@ -15,6 +18,35 @@ export function setUseDefaults(value: boolean): void {
  */
 export function isUsingDefaults(): boolean {
 	return useDefaults;
+}
+
+/**
+ * Set override values from CLI arguments
+ */
+export function setOverrides(values: Record<string, string | number | boolean | string[]>): void {
+	Object.assign(overrides, values);
+}
+
+/**
+ * Clear all overrides
+ */
+export function clearOverrides(): void {
+	for (const key of Object.keys(overrides)) {
+		delete overrides[key];
+	}
+}
+
+/**
+ * Get override value for a prompt message (matches substring)
+ */
+function getOverride(message: string): string | number | boolean | string[] | undefined {
+	const msgLower = message.toLowerCase();
+	for (const [key, value] of Object.entries(overrides)) {
+		if (msgLower.includes(key.toLowerCase())) {
+			return value;
+		}
+	}
+	return undefined;
 }
 
 /**
@@ -44,6 +76,8 @@ export async function number(
 	min?: number,
 	max?: number,
 ): Promise<number> {
+	const override = getOverride(message);
+	if (override !== undefined) return Number(override);
 	if (useDefaults) return defaultValue ?? 0;
 
 	const response = await prompts({
@@ -64,6 +98,8 @@ export async function confirm(
 	message: string,
 	defaultValue = true,
 ): Promise<boolean> {
+	const override = getOverride(message);
+	if (override !== undefined) return Boolean(override);
 	if (useDefaults) return defaultValue;
 
 	const response = await prompts({

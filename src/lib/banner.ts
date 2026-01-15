@@ -1,7 +1,7 @@
 import figlet from 'figlet';
 import gradient from 'gradient-string';
 
-const GRADIENT_COLORS = ['#00ffff', '#00d4ff', '#a855f7', '#ec4899'];
+const GRADIENT_COLORS = ['#22c55e', '#84cc16', '#eab308', '#fcd34d'];
 
 /**
  * Render the PicLet ASCII art logo with gradient colors

@@ -156,6 +156,25 @@ export async function resize(
 }
 
 /**
+ * Scale image to fill area and crop to exact size (cover mode)
+ */
+export async function scaleFillCrop(
+	inputPath: string,
+	outputPath: string,
+	width: number,
+	height: number,
+): Promise<boolean> {
+	try {
+		await execAsync(
+			`convert "${inputPath}" -resize ${width}x${height}^ -gravity center -extent ${width}x${height} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Remove background color from image
  */
 export async function removeBackground(

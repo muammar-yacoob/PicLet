@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html data-piclet data-width="400" data-height="420">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Make Icon</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="/js/piclet.js"></script>
+  <style>
+    .preview-area{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:6px;min-height:140px;overflow:hidden;position:relative}
+    .preview-area::before{content:'';position:absolute;inset:0;background:repeating-conic-gradient(#1a1a1d 0% 25%, #222 0% 50%) 50%/16px 16px;z-index:0}
+    .preview-area img{max-width:100%;max-height:100%;object-fit:contain;position:relative;z-index:1}
+    .preview-area .placeholder{position:relative;z-index:1;font-size:11px;color:var(--txt3)}
+    .preview-area .mini-sp{width:16px;height:16px;border:2px solid var(--bg3);border-top-color:var(--acc);border-radius:50%;animation:s .5s linear infinite;position:relative;z-index:1}
+    .preview-info{font-size:10px;color:var(--txt3);text-align:center;margin-top:4px;height:14px}
+    .info-row{display:flex;justify-content:space-between;font-size:11px;padding:6px 10px;background:var(--bg2);border-radius:4px}
+    .info-row .label{color:var(--txt3)}
+    .info-row .value{color:var(--txt2)}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="hd"><b>PicLet</b><span>Make Icon</span></div>
+  <div class="meta">
+    <div>File<b id="fn">-</b></div>
+    <div>Size<b id="sz">-</b></div>
+  </div>
+  <!-- Form state -->
+  <div id="F" class="form">
+    <div class="preview-area" id="pA">
+      <span class="placeholder">Loading preview...</span>
+    </div>
+    <div class="preview-info" id="pI"></div>
+    <div class="info-row">
+      <span class="label">Output</span>
+      <span class="value" id="oN">-</span>
+    </div>
+    <div class="opts">
+      <label class="opt"><input type="checkbox" id="cT" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Trim transparent</label>
+      <label class="opt"><input type="checkbox" id="cS" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Square with padding</label>
+    </div>
+    <div class="btns">
+      <button class="btn btn-g" onclick="PicLet.close()">Cancel</button>
+      <button class="btn btn-p" onclick="convert()">Convert</button>
+    </div>
+  </div>
+  <!-- Loading state -->
+  <div class="ld" id="L"><div class="sp"></div><span id="lT">Converting...</span></div>
+  <!-- Log -->
+  <div class="log" id="G"></div>
+  <!-- Done state -->
+  <div class="dn" id="D">
+    <h4 id="dT"></h4>
+    <p id="dM"></p>
+    <div class="btns" style="width:100%;margin-top:8px">
+      <button class="btn btn-p" onclick="PicLet.close()">Done</button>
+    </div>
+  </div>
+</div>
+<script>
+const { $, log, fetchJson, postJson } = PicLet;
+const pA = $('pA'), pI = $('pI');
+
+let previewTimeout = null;
+let lastPreviewOpts = null;
+
+// Get current options
+function getOptions() {
+  return {
+    trim: $('cT').checked,
+    makeSquare: $('cS').checked
+  };
+}
+
+// Check if options changed
+function optionsChanged() {
+  const current = JSON.stringify(getOptions());
+  if (current === lastPreviewOpts) return false;
+  lastPreviewOpts = current;
+  return true;
+}
+
+// Schedule preview (debounced)
+function schedulePreview() {
+  if (previewTimeout) clearTimeout(previewTimeout);
+  previewTimeout = setTimeout(() => {
+    if (optionsChanged()) {
+      generatePreview();
+    }
+  }, 300);
+}
+
+// Generate preview
+async function generatePreview() {
+  pA.innerHTML = '<div class="mini-sp"></div>';
+  pI.textContent = '';
+
+  try {
+    const result = await postJson('/api/preview', getOptions());
+
+    if (result.success && result.imageData) {
+      const img = document.createElement('img');
+      img.src = result.imageData;
+      img.alt = 'Preview';
+      pA.innerHTML = '';
+      pA.appendChild(img);
+      pI.textContent = result.width && result.height ? `${result.width}×${result.height}` : '';
+    } else {
+      pA.innerHTML = '<span class="placeholder">' + (result.error || 'Preview failed') + '</span>';
+      pI.textContent = '';
+    }
+  } catch (e) {
+    pA.innerHTML = '<span class="placeholder">Preview error</span>';
+    pI.textContent = '';
+  }
+}
+
+// Checkbox changes trigger preview
+$('cT').onchange = schedulePreview;
+$('cS').onchange = schedulePreview;
+
+// Load initial data
+fetchJson('/api/info').then(d => {
+  $('fn').textContent = d.fileName;
+  $('sz').textContent = d.width + '×' + d.height;
+  // Show output filename
+  const baseName = d.fileName.replace(/\.[^.]+$/, '');
+  $('oN').textContent = baseName + '.ico';
+  // Load defaults
+  if (d.defaults) {
+    $('cT').checked = d.defaults.trim ?? true;
+    $('cS').checked = d.defaults.makeSquare ?? true;
+  }
+  // Generate initial preview
+  setTimeout(generatePreview, 100);
+});
+
+// Convert to ICO
+async function convert() {
+  $('F').classList.add('hide');
+  $('L').classList.add('on');
+  $('G').classList.add('on');
+
+  try {
+    const result = await postJson('/api/process', getOptions());
+
+    if (result.logs) {
+      result.logs.forEach(l => log('G', l.type[0], l.message));
+    }
+
+    $('L').classList.remove('on');
+    $('D').classList.add('on', result.success ? 'ok' : 'err');
+    $('dT').textContent = result.success ? 'Done' : 'Failed';
+    $('dM').textContent = result.success ? result.output : result.error;
+  } catch (e) {
+    log('G', 'e', e.message);
+    $('L').classList.remove('on');
+    $('D').classList.add('on', 'err');
+    $('dT').textContent = 'Error';
+    $('dM').textContent = e.message;
+  }
+}
+</script>
+</body>
+</html>

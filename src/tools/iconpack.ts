@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { basename, dirname } from 'node:path';
+import { startGuiServer } from '../lib/gui-server.js';
 import {
 	DIM,
 	RESET,
@@ -305,6 +306,186 @@ export async function run(inputRaw: string): Promise<boolean> {
 	}
 
 	return totalFailed === 0;
+}
+
+/**
+ * Generate icon pack (GUI mode)
+ */
+export async function runGUI(inputRaw: string): Promise<boolean> {
+	const input = normalizePath(inputRaw);
+
+	if (!existsSync(input)) {
+		error(`File not found: ${input}`);
+		return false;
+	}
+
+	const dims = await getDimensions(input);
+	if (!dims) {
+		error('Failed to read image dimensions');
+		return false;
+	}
+
+	const fileInfo = getFileInfo(input);
+
+	return startGuiServer({
+		htmlFile: 'iconpack.html',
+		title: 'PicLet - Icon Pack',
+		imageInfo: {
+			filePath: input,
+			fileName: basename(input),
+			width: dims[0],
+			height: dims[1],
+			borderColor: null,
+		},
+		defaults: {
+			web: true,
+			android: true,
+			ios: true,
+		},
+		onProcess: async (opts) => {
+			const logs: Array<{ type: string; message: string }> = [];
+
+			if (!(await checkImageMagick())) {
+				return {
+					success: false,
+					error: 'ImageMagick not found',
+					logs: [{ type: 'error', message: 'ImageMagick not found' }],
+				};
+			}
+
+			const doWeb = (opts.web as boolean) ?? true;
+			const doAndroid = (opts.android as boolean) ?? true;
+			const doIos = (opts.ios as boolean) ?? true;
+
+			if (!doWeb && !doAndroid && !doIos) {
+				return {
+					success: false,
+					error: 'No platforms selected',
+					logs: [{ type: 'error', message: 'No platforms selected' }],
+				};
+			}
+
+			// Create output directory
+			const outputDir = `${fileInfo.dirname}/${fileInfo.filename}_icons`;
+			mkdirSync(outputDir, { recursive: true });
+			logs.push({ type: 'info', message: `Output: ${outputDir}` });
+
+			// Prepare source: make square and scale to 1024px
+			logs.push({ type: 'info', message: 'Preparing source image...' });
+			const tempSource = `${outputDir}/.source_1024.png`;
+			const tempSquare = `${outputDir}/.temp_square.png`;
+
+			if (!(await squarify(input, tempSquare))) {
+				return { success: false, error: 'Failed to prepare source', logs };
+			}
+
+			if (!(await scaleToSize(tempSquare, tempSource, 1024))) {
+				cleanup(tempSquare);
+				return { success: false, error: 'Failed to prepare source', logs };
+			}
+			cleanup(tempSquare);
+			logs.push({ type: 'success', message: 'Prepared 1024x1024 source' });
+
+			let totalFailed = 0;
+
+			// Generate Web icons
+			if (doWeb) {
+				logs.push({ type: 'info', message: 'Generating Web icons...' });
+				const webDir = `${outputDir}/web`;
+				mkdirSync(webDir, { recursive: true });
+
+				if (!(await generateFaviconSilent(webDir, tempSource))) {
+					totalFailed++;
+				}
+				totalFailed += await generateIconsSilent(webDir, tempSource, WEB_ICONS, logs);
+				logs.push({ type: 'success', message: `Web: ${WEB_ICONS.length + 1} icons` });
+			}
+
+			// Generate Android icons
+			if (doAndroid) {
+				logs.push({ type: 'info', message: 'Generating Android icons...' });
+				const androidDir = `${outputDir}/android`;
+				mkdirSync(androidDir, { recursive: true });
+				totalFailed += await generateIconsSilent(androidDir, tempSource, ANDROID_ICONS, logs);
+				logs.push({ type: 'success', message: `Android: ${ANDROID_ICONS.length} icons` });
+			}
+
+			// Generate iOS icons
+			if (doIos) {
+				logs.push({ type: 'info', message: 'Generating iOS icons...' });
+				const iosDir = `${outputDir}/ios`;
+				mkdirSync(iosDir, { recursive: true });
+				totalFailed += await generateIconsSilent(iosDir, tempSource, IOS_ICONS, logs);
+				logs.push({ type: 'success', message: `iOS: ${IOS_ICONS.length} icons` });
+			}
+
+			cleanup(tempSource);
+
+			if (totalFailed === 0) {
+				return {
+					success: true,
+					output: `Icons saved to ${fileInfo.filename}_icons/`,
+					logs,
+				};
+			}
+
+			return {
+				success: false,
+				error: `${totalFailed} icon(s) failed`,
+				logs,
+			};
+		},
+	});
+}
+
+/**
+ * Silent version of generateIcons for GUI mode
+ */
+async function generateIconsSilent(
+	outputDir: string,
+	sourceImg: string,
+	icons: IconDef[],
+	_logs: Array<{ type: string; message: string }>,
+): Promise<number> {
+	let failed = 0;
+
+	for (const icon of icons) {
+		const outputPath = `${outputDir}/${icon.filename}`;
+		const subdir = dirname(outputPath);
+		if (!existsSync(subdir)) {
+			mkdirSync(subdir, { recursive: true });
+		}
+
+		if (!(await scaleToSize(sourceImg, outputPath, icon.size))) {
+			failed++;
+		}
+	}
+
+	return failed;
+}
+
+/**
+ * Silent version of generateFavicon for GUI mode
+ */
+async function generateFaviconSilent(
+	outputDir: string,
+	sourceImg: string,
+): Promise<boolean> {
+	const temp16 = `${outputDir}/.temp_16.png`;
+	const temp32 = `${outputDir}/.temp_32.png`;
+	const temp48 = `${outputDir}/.temp_48.png`;
+
+	await scaleToSize(sourceImg, temp16, 16);
+	await scaleToSize(sourceImg, temp32, 32);
+	await scaleToSize(sourceImg, temp48, 48);
+
+	const result = await createIcoFromMultiple(
+		[temp16, temp32, temp48],
+		`${outputDir}/favicon.ico`,
+	);
+
+	cleanup(temp16, temp32, temp48);
+	return result;
 }
 
 export const config = {

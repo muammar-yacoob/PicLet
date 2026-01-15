@@ -8,12 +8,13 @@ import { Command } from 'commander';
 import { showBanner } from './lib/banner.js';
 import { getConfigPath, loadConfig, resetConfig } from './lib/config.js';
 import { wslToWindows } from './lib/paths.js';
-import { setUseDefaults } from './lib/prompts.js';
+import { clearOverrides, setOverrides, setUseDefaults } from './lib/prompts.js';
 import { addRegistryKey, deleteRegistryKey, isWSL } from './lib/registry.js';
 import * as iconpack from './tools/iconpack.js';
 import * as makeicon from './tools/makeicon.js';
 import * as removeBg from './tools/remove-bg.js';
 import * as rescale from './tools/rescale.js';
+import * as storepack from './tools/storepack.js';
 
 /** Tool configuration */
 interface ToolConfig {
@@ -36,6 +37,7 @@ const tools = [
 	{ config: removeBg.config, run: removeBg.run },
 	{ config: rescale.config, run: rescale.run },
 	{ config: iconpack.config, run: iconpack.run },
+	{ config: storepack.config, run: storepack.run },
 ];
 
 const program = new Command();
@@ -67,6 +69,9 @@ function getToolsForExtension(extension: string) {
 	return tools.filter((t) => t.config.extensions.includes(extension));
 }
 
+/** Tools that use TUI (terminal GUI) mode */
+const tuiTools = ['makeicon', 'remove-bg', 'rescale', 'iconpack', 'storepack'];
+
 /** Register PicLet menu for a single extension */
 async function registerMenuForExtension(
 	extension: string,
@@ -96,8 +101,15 @@ async function registerMenuForExtension(
 		// Enable multi-select
 		await addRegistryKey(toolPath, 'MultiSelectModel', 'Player');
 
-		// Command - %1 must be outside quotes so Windows expands it
-		const commandValue = `wsl piclet ${config.id} "%1" -y`;
+		// Command - GUI tools open window, others run headless
+		let commandValue: string;
+		if (tuiTools.includes(config.id)) {
+			// GUI mode - opens Edge app window
+			commandValue = `cmd /c wsl piclet ${config.id} "%1" -g`;
+		} else {
+			// Run headless with defaults
+			commandValue = `wsl piclet ${config.id} "%1" -y`;
+		}
 		const cmdSuccess = await addRegistryKey(
 			`${toolPath}\\command`,
 			'',
@@ -270,6 +282,9 @@ function showHelp(): void {
 	console.log(
 		`    ${cmd('iconpack')} ${arg('<file>')}   Generate icon sets for Web/Android/iOS`,
 	);
+	console.log(
+		`    ${cmd('storepack')} ${arg('<file>')}  Generate assets for app stores`,
+	);
 	console.log();
 	console.log(head('  Setup'));
 	console.log(
@@ -289,6 +304,8 @@ function showHelp(): void {
 	console.log(`    ${dim('$')} piclet ${cmd('scale')} ${arg('image.jpg')}          ${dim('# Interactive resize')}`);
 	console.log(`    ${dim('$')} piclet ${cmd('scale')} ${arg('a.jpg b.jpg')} ${opt('-y')}     ${dim('# Batch: 50% scale')}`);
 	console.log(`    ${dim('$')} piclet ${cmd('iconpack')} ${arg('icon.png')} ${opt('-y')}     ${dim('# All platforms')}`);
+	console.log(`    ${dim('$')} piclet ${cmd('storepack')} ${arg('logo.png')}       ${dim('# Interactive preset')}`);
+	console.log(`    ${dim('$')} piclet ${cmd('storepack')} ${arg('logo.png')} ${opt('-y')}    ${dim('# First preset')}`);
 	console.log();
 	console.log(head('  Requirements'));
 	console.log('    - WSL (Windows Subsystem for Linux)');
@@ -420,7 +437,24 @@ program
 	.command('makeicon <files...>')
 	.description('Convert PNG to multi-resolution ICO file')
 	.option('-y, --yes', 'Use defaults, skip prompts')
-	.action(async (files: string[], options: { yes?: boolean }) => {
+	.option('-g, --gui', 'Use GUI for confirmation')
+	.action(async (files: string[], options: { yes?: boolean; gui?: boolean }) => {
+		// GUI mode
+		if (options.gui) {
+			const { valid, invalid } = validateExtensions(files, makeicon.config.extensions);
+			if (invalid.length > 0) {
+				console.error(chalk.red('Invalid file types:'));
+				for (const file of invalid) {
+					console.error(chalk.red(`  - ${file}`));
+				}
+			}
+			if (valid.length === 0) {
+				process.exit(1);
+			}
+			const result = await makeicon.runGUI(valid[0]);
+			process.exit(result ? 0 : 1);
+		}
+
 		const success = await runToolOnFiles(
 			'makeicon',
 			files,
@@ -435,12 +469,50 @@ program
 	.alias('removebg')
 	.description('Remove solid background from image')
 	.option('-y, --yes', 'Use defaults, skip prompts')
-	.action(async (files: string[], options: { yes?: boolean }) => {
+	.option('-g, --gui', 'Use TUI (terminal GUI) for options')
+	.option('-f, --fuzz <percent>', 'Fuzz tolerance 0-100 (default: 10)')
+	.option('-t, --trim', 'Trim transparent edges (default: true)')
+	.option('--no-trim', 'Do not trim transparent edges')
+	.option('-p, --preserve-inner', 'Preserve inner areas of same color')
+	.option('-s, --square', 'Make output square with padding')
+	.action(async (files: string[], options: { yes?: boolean; gui?: boolean; fuzz?: string; trim?: boolean; preserveInner?: boolean; square?: boolean }) => {
+		// GUI mode - open HTML interface in browser
+		if (options.gui) {
+			const { valid, invalid } = validateExtensions(files, removeBg.config.extensions);
+			if (invalid.length > 0) {
+				console.error(chalk.red('Invalid file types:'));
+				for (const file of invalid) {
+					console.error(chalk.red(`  - ${file}`));
+				}
+			}
+			if (valid.length === 0) {
+				process.exit(1);
+			}
+			// Only process first file in GUI mode
+			const result = await removeBg.runGUI(valid[0]);
+			process.exit(result ? 0 : 1);
+		}
+
+		// Set overrides from CLI args
+		if (options.fuzz !== undefined) {
+			setOverrides({ 'fuzz': Number(options.fuzz) });
+		}
+		if (options.trim !== undefined) {
+			setOverrides({ 'trim': options.trim });
+		}
+		if (options.preserveInner) {
+			setOverrides({ 'preserve inner': true });
+		}
+		if (options.square) {
+			setOverrides({ 'square': true });
+		}
+
 		const success = await runToolOnFiles(
 			'remove-bg',
 			files,
 			options.yes ?? false,
 		);
+		clearOverrides();
 		process.exit(success ? 0 : 1);
 	});
 
@@ -450,7 +522,24 @@ program
 	.alias('rescale')
 	.description('Resize image with optional padding')
 	.option('-y, --yes', 'Use defaults, skip prompts')
-	.action(async (files: string[], options: { yes?: boolean }) => {
+	.option('-g, --gui', 'Use GUI for options')
+	.action(async (files: string[], options: { yes?: boolean; gui?: boolean }) => {
+		// GUI mode
+		if (options.gui) {
+			const { valid, invalid } = validateExtensions(files, rescale.config.extensions);
+			if (invalid.length > 0) {
+				console.error(chalk.red('Invalid file types:'));
+				for (const file of invalid) {
+					console.error(chalk.red(`  - ${file}`));
+				}
+			}
+			if (valid.length === 0) {
+				process.exit(1);
+			}
+			const result = await rescale.runGUI(valid[0]);
+			process.exit(result ? 0 : 1);
+		}
+
 		const success = await runToolOnFiles(
 			'rescale',
 			files,
@@ -464,9 +553,57 @@ program
 	.command('iconpack <files...>')
 	.description('Generate icon sets for Web, Android, iOS')
 	.option('-y, --yes', 'Use defaults, skip prompts')
-	.action(async (files: string[], options: { yes?: boolean }) => {
+	.option('-g, --gui', 'Use GUI for options')
+	.action(async (files: string[], options: { yes?: boolean; gui?: boolean }) => {
+		// GUI mode
+		if (options.gui) {
+			const { valid, invalid } = validateExtensions(files, iconpack.config.extensions);
+			if (invalid.length > 0) {
+				console.error(chalk.red('Invalid file types:'));
+				for (const file of invalid) {
+					console.error(chalk.red(`  - ${file}`));
+				}
+			}
+			if (valid.length === 0) {
+				process.exit(1);
+			}
+			const result = await iconpack.runGUI(valid[0]);
+			process.exit(result ? 0 : 1);
+		}
+
 		const success = await runToolOnFiles(
 			'iconpack',
+			files,
+			options.yes ?? false,
+		);
+		process.exit(success ? 0 : 1);
+	});
+
+// Store Pack command
+program
+	.command('storepack <files...>')
+	.description('Generate assets for app stores (Windows, Unity, Steam, etc.)')
+	.option('-y, --yes', 'Use defaults, skip prompts')
+	.option('-g, --gui', 'Use GUI for options')
+	.action(async (files: string[], options: { yes?: boolean; gui?: boolean }) => {
+		// GUI mode
+		if (options.gui) {
+			const { valid, invalid } = validateExtensions(files, storepack.config.extensions);
+			if (invalid.length > 0) {
+				console.error(chalk.red('Invalid file types:'));
+				for (const file of invalid) {
+					console.error(chalk.red(`  - ${file}`));
+				}
+			}
+			if (valid.length === 0) {
+				process.exit(1);
+			}
+			const result = await storepack.runGUI(valid[0]);
+			process.exit(result ? 0 : 1);
+		}
+
+		const success = await runToolOnFiles(
+			'storepack',
 			files,
 			options.yes ?? false,
 		);

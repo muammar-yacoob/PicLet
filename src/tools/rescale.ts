@@ -1,4 +1,8 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
+import { loadConfig } from '../lib/config.js';
+import { startGuiServer } from '../lib/gui-server.js';
 import {
 	BOLD,
 	DIM,
@@ -13,6 +17,7 @@ import {
 } from '../lib/logger.js';
 import {
 	checkImageMagick,
+	cleanup,
 	getDimensions,
 	resize,
 	scaleWithPadding,
@@ -23,6 +28,13 @@ import {
 	number as promptNumber,
 	pauseOnError,
 } from '../lib/prompts.js';
+
+/** Processing options for rescale */
+interface ProcessOptions {
+	width: number;
+	height: number;
+	makeSquare: boolean;
+}
 
 /**
  * Scale image with optional padding
@@ -140,6 +152,140 @@ export async function run(inputRaw: string): Promise<boolean> {
 	console.log('');
 	success(`Output: ${output}`);
 	return true;
+}
+
+/**
+ * Scale image (GUI mode)
+ */
+export async function runGUI(inputRaw: string): Promise<boolean> {
+	const input = normalizePath(inputRaw);
+
+	if (!existsSync(input)) {
+		error(`File not found: ${input}`);
+		return false;
+	}
+
+	const dims = await getDimensions(input);
+	if (!dims) {
+		error('Failed to read image dimensions');
+		return false;
+	}
+
+	const fileInfo = getFileInfo(input);
+
+	return startGuiServer({
+		htmlFile: 'rescale.html',
+		title: 'PicLet - Scale Image',
+		imageInfo: {
+			filePath: input,
+			fileName: basename(input),
+			width: dims[0],
+			height: dims[1],
+			borderColor: null,
+		},
+		defaults: {
+			makeSquare: false,
+		},
+		onPreview: async (opts) => {
+			const options: ProcessOptions = {
+				width: (opts.width as number) ?? Math.round(dims[0] / 2),
+				height: (opts.height as number) ?? Math.round(dims[1] / 2),
+				makeSquare: (opts.makeSquare as boolean) ?? false,
+			};
+			return generatePreview(input, options);
+		},
+		onProcess: async (opts) => {
+			const logs: Array<{ type: string; message: string }> = [];
+
+			if (!(await checkImageMagick())) {
+				return {
+					success: false,
+					error: 'ImageMagick not found',
+					logs: [{ type: 'error', message: 'ImageMagick not found' }],
+				};
+			}
+
+			const options: ProcessOptions = {
+				width: (opts.width as number) ?? Math.round(dims[0] / 2),
+				height: (opts.height as number) ?? Math.round(dims[1] / 2),
+				makeSquare: (opts.makeSquare as boolean) ?? false,
+			};
+
+			logs.push({ type: 'info', message: `Scaling to ${options.width}x${options.height}...` });
+
+			const output = `${fileInfo.dirname}/${fileInfo.filename}_scaled${fileInfo.extension}`;
+			let scaled = false;
+
+			if (options.makeSquare) {
+				const maxDim = Math.max(options.width, options.height);
+				scaled = await scaleWithPadding(input, output, maxDim, maxDim);
+			} else {
+				scaled = await resize(input, output, options.width, options.height);
+			}
+
+			if (scaled && existsSync(output)) {
+				const finalDims = await getDimensions(output);
+				const sizeStr = finalDims ? ` (${finalDims[0]}x${finalDims[1]})` : '';
+				logs.push({ type: 'success', message: 'Scaled successfully' });
+				return {
+					success: true,
+					output: `${basename(output)}${sizeStr}`,
+					logs,
+				};
+			}
+
+			logs.push({ type: 'error', message: 'Scaling failed' });
+			return { success: false, error: 'Scaling failed', logs };
+		},
+	});
+}
+
+/**
+ * Generate preview image as base64 data URL
+ */
+async function generatePreview(
+	input: string,
+	options: ProcessOptions,
+): Promise<{ success: boolean; imageData?: string; width?: number; height?: number; error?: string }> {
+	const tempDir = tmpdir();
+	const timestamp = Date.now();
+	const tempOutput = join(tempDir, `piclet-preview-${timestamp}.png`);
+
+	try {
+		let scaled = false;
+		let targetW = options.width;
+		let targetH = options.height;
+
+		if (options.makeSquare) {
+			const maxDim = Math.max(targetW, targetH);
+			targetW = maxDim;
+			targetH = maxDim;
+			scaled = await scaleWithPadding(input, tempOutput, targetW, targetH);
+		} else {
+			scaled = await resize(input, tempOutput, targetW, targetH);
+		}
+
+		if (!scaled || !existsSync(tempOutput)) {
+			return { success: false, error: 'Scaling failed' };
+		}
+
+		const buffer = readFileSync(tempOutput);
+		const base64 = buffer.toString('base64');
+		const imageData = `data:image/png;base64,${base64}`;
+
+		const dims = await getDimensions(tempOutput);
+		cleanup(tempOutput);
+
+		return {
+			success: true,
+			imageData,
+			width: dims?.[0],
+			height: dims?.[1],
+		};
+	} catch (err) {
+		cleanup(tempOutput);
+		return { success: false, error: (err as Error).message };
+	}
 }
 
 export const config = {

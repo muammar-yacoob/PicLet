@@ -14,6 +14,9 @@ export default defineConfig({
 		// Copy icons for registry
 		cpSync('src/icons', 'dist/icons', { recursive: true });
 
+		// Copy GUI HTML files
+		cpSync('src/gui', 'dist/gui', { recursive: true });
+
 		// Add shebang to cli.js
 		const cliPath = 'dist/cli.js';
 		const content = readFileSync(cliPath, 'utf-8');
@@ -21,6 +24,6 @@ export default defineConfig({
 			writeFileSync(cliPath, `#!/usr/bin/env node\n${content}`);
 		}
 
-		console.log('Copied icons to dist/');
+		console.log('Copied assets to dist/');
 	},
 });
