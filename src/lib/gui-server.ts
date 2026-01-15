@@ -76,12 +76,13 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 
 		// Serve static files (CSS, JS, etc.)
 		const guiDir = join(__dirname, 'gui');
+		const iconsDir = join(__dirname, 'icons');
 		app.use(express.static(guiDir));
+		app.use('/icons', express.static(iconsDir));
 
 		// Serve favicon from icons directory
 		app.get('/favicon.ico', (_req, res) => {
-			const iconPath = join(guiDir, '..', 'icons', 'banana.ico');
-			res.sendFile(iconPath);
+			res.sendFile(join(iconsDir, 'banana.ico'));
 		});
 
 		// API: Get image info and defaults

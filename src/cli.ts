@@ -12,6 +12,7 @@ import { clearOverrides, setOverrides, setUseDefaults } from './lib/prompts.js';
 import { addRegistryKey, deleteRegistryKey, isWSL } from './lib/registry.js';
 import * as iconpack from './tools/iconpack.js';
 import * as makeicon from './tools/makeicon.js';
+import * as picletMain from './tools/piclet-main.js';
 import * as removeBg from './tools/remove-bg.js';
 import * as rescale from './tools/rescale.js';
 import * as storepack from './tools/storepack.js';
@@ -31,7 +32,7 @@ interface RegistrationResult {
 	success: boolean;
 }
 
-/** All available tools */
+/** All available tools (individual) */
 const tools = [
 	{ config: makeicon.config, run: makeicon.run },
 	{ config: removeBg.config, run: removeBg.run },
@@ -39,6 +40,9 @@ const tools = [
 	{ config: iconpack.config, run: iconpack.run },
 	{ config: storepack.config, run: storepack.run },
 ];
+
+/** Unified PicLet tool (all-in-one) */
+const picletTool = { config: picletMain.config, runGUI: picletMain.runGUI };
 
 const program = new Command();
 
@@ -72,7 +76,35 @@ function getToolsForExtension(extension: string) {
 /** Tools that use TUI (terminal GUI) mode */
 const tuiTools = ['makeicon', 'remove-bg', 'rescale', 'iconpack', 'storepack'];
 
-/** Register PicLet menu for a single extension */
+/** Register unified PicLet menu item directly on context menu (no submenu) */
+async function registerUnifiedMenu(
+	extension: string,
+	iconsDir: string,
+	launcherPath: string,
+): Promise<RegistrationResult> {
+	const basePath = `HKCU\\Software\\Classes\\SystemFileAssociations\\${extension}\\shell\\PicLet`;
+	const iconsDirWin = wslToWindows(iconsDir);
+	const launcherWin = wslToWindows(launcherPath);
+
+	// Create direct PicLet menu item (not a submenu)
+	const menuSuccess = await addRegistryKey(basePath, 'MUIVerb', 'PicLet');
+	const iconSuccess = await addRegistryKey(basePath, 'Icon', `${iconsDirWin}\\banana.ico`);
+
+	// Enable multi-select
+	await addRegistryKey(basePath, 'MultiSelectModel', 'Player');
+
+	// Command - opens unified GUI
+	const commandValue = `wscript.exe //B "${launcherWin}" piclet "%1" -g`;
+	const cmdSuccess = await addRegistryKey(`${basePath}\\command`, '', commandValue);
+
+	return {
+		extension,
+		toolName: 'PicLet',
+		success: menuSuccess && iconSuccess && cmdSuccess,
+	};
+}
+
+/** Register PicLet submenu for a single extension (legacy - individual tools) */
 async function registerMenuForExtension(
 	extension: string,
 	iconsDir: string,
@@ -158,7 +190,7 @@ async function unregisterMenuForExtension(
 	return results;
 }
 
-/** Register all tools */
+/** Register all tools - unified mode (single PicLet menu item) */
 async function registerAllTools(
 	distDir: string,
 ): Promise<RegistrationResult[]> {
@@ -166,13 +198,10 @@ async function registerAllTools(
 	const launcherPath = join(distDir, 'launcher.vbs');
 	const results: RegistrationResult[] = [];
 
-	for (const extension of getAllExtensions()) {
-		const extResults = await registerMenuForExtension(
-			extension,
-			iconsDir,
-			launcherPath,
-		);
-		results.push(...extResults);
+	// Register unified PicLet menu for each supported extension
+	for (const extension of picletTool.config.extensions) {
+		const result = await registerUnifiedMenu(extension, iconsDir, launcherPath);
+		results.push(result);
 	}
 
 	return results;
@@ -182,9 +211,18 @@ async function registerAllTools(
 async function unregisterAllTools(): Promise<RegistrationResult[]> {
 	const results: RegistrationResult[] = [];
 
-	for (const extension of getAllExtensions()) {
+	// Unregister from all extensions (both unified and legacy)
+	const allExts = new Set([...getAllExtensions(), ...picletTool.config.extensions]);
+	for (const extension of allExts) {
+		const basePath = getMenuBasePath(extension);
+
+		// Try to delete any submenus (legacy)
 		const extResults = await unregisterMenuForExtension(extension);
 		results.push(...extResults);
+
+		// Also delete the unified command if it exists
+		await deleteRegistryKey(`${basePath}\\command`);
+		await deleteRegistryKey(basePath);
 	}
 
 	return results;
@@ -276,7 +314,12 @@ function showHelp(): void {
 		`  ${head('Usage:')} piclet ${cmd('<command>')} ${arg('<file>')} ${opt('[options]')}`,
 	);
 	console.log();
-	console.log(head('  Image Tools'));
+	console.log(head('  Unified'));
+	console.log(
+		`    ${cmd('piclet')} ${arg('<file>')}     Open all tools in one window`,
+	);
+	console.log();
+	console.log(head('  Individual Tools'));
 	console.log(
 		`    ${cmd('makeicon')} ${arg('<file>')}   Convert PNG to multi-resolution ICO`,
 	);
@@ -304,15 +347,12 @@ function showHelp(): void {
 	console.log(`    ${cmd('config reset')}         Restore defaults`);
 	console.log();
 	console.log(head('  Examples'));
+	console.log(`    ${dim('$')} piclet ${cmd('piclet')} ${arg('image.png')}         ${dim('# All tools in one window')}`);
 	console.log(`    ${dim('$')} piclet ${cmd('makeicon')} ${arg('logo.png')}        ${dim('# Interactive')}`);
 	console.log(`    ${dim('$')} piclet ${cmd('makeicon')} ${arg('*.png')} ${opt('-y')}        ${dim('# Batch with defaults')}`);
 	console.log(`    ${dim('$')} piclet ${cmd('remove-bg')} ${arg('photo.png')}      ${dim('# Interactive prompts')}`);
-	console.log(`    ${dim('$')} piclet ${cmd('remove-bg')} ${arg('*.png')} ${opt('-y')}       ${dim('# Batch: fuzz=10, trim')}`);
 	console.log(`    ${dim('$')} piclet ${cmd('scale')} ${arg('image.jpg')}          ${dim('# Interactive resize')}`);
-	console.log(`    ${dim('$')} piclet ${cmd('scale')} ${arg('a.jpg b.jpg')} ${opt('-y')}     ${dim('# Batch: 50% scale')}`);
 	console.log(`    ${dim('$')} piclet ${cmd('iconpack')} ${arg('icon.png')} ${opt('-y')}     ${dim('# All platforms')}`);
-	console.log(`    ${dim('$')} piclet ${cmd('storepack')} ${arg('logo.png')}       ${dim('# Interactive preset')}`);
-	console.log(`    ${dim('$')} piclet ${cmd('storepack')} ${arg('logo.png')} ${opt('-y')}    ${dim('# First preset')}`);
 	console.log();
 	console.log(head('  Requirements'));
 	console.log('    - WSL (Windows Subsystem for Linux)');
@@ -615,6 +655,22 @@ program
 			options.yes ?? false,
 		);
 		process.exit(success ? 0 : 1);
+	});
+
+// Unified PicLet command (all tools in one window)
+program
+	.command('piclet <file>')
+	.description('Open unified PicLet window with all tools')
+	.option('-g, --gui', 'Use GUI (default)')
+	.action(async (file: string) => {
+		const { valid, invalid } = validateExtensions([file], picletTool.config.extensions);
+		if (invalid.length > 0) {
+			console.error(chalk.red(`Invalid file type: ${file}`));
+			console.error(chalk.yellow(`Supported: ${picletTool.config.extensions.join(', ')}`));
+			process.exit(1);
+		}
+		const result = await picletTool.runGUI(valid[0]);
+		process.exit(result ? 0 : 1);
 	});
 
 // Config command

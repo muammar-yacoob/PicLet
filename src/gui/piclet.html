@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html data-piclet data-width="380" data-height="560">
+<html data-piclet data-width="620" data-height="520">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -7,176 +7,203 @@
   <link rel="stylesheet" href="/css/theme.css">
   <script src="/js/piclet.js"></script>
   <style>
-    .preview-area{display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:6px;height:120px;overflow:hidden;position:relative}
+    .app{display:flex;flex-direction:column;height:100%}
+    .main{display:flex;flex:1;gap:12px;overflow:hidden}
+
+    /* Left panel - Preview */
+    .preview-panel{width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
+    .preview-area{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:6px;overflow:hidden;position:relative;min-height:180px}
     .preview-area::before{content:'';position:absolute;inset:0;background:repeating-conic-gradient(#1a1a1d 0% 25%, #222 0% 50%) 50%/16px 16px;z-index:0}
     .preview-area img{max-width:100%;max-height:100%;object-fit:contain;position:relative;z-index:1}
-    .preview-area .placeholder{position:relative;z-index:1;font-size:11px;color:var(--txt3)}
-    .preview-area .mini-sp{width:16px;height:16px;border:2px solid var(--bg3);border-top-color:var(--acc);border-radius:50%;animation:s .5s linear infinite;position:relative;z-index:1}
-    .preview-info{font-size:10px;color:var(--txt3);text-align:center;margin-top:4px;height:14px}
+    .preview-area .placeholder{position:relative;z-index:1;font-size:11px;color:var(--txt3);text-align:center;padding:12px}
+    .preview-area .mini-sp{width:20px;height:20px;border:2px solid var(--bg3);border-top-color:var(--acc);border-radius:50%;animation:s .5s linear infinite;position:relative;z-index:1}
+    .preview-info{font-size:10px;color:var(--txt3);text-align:center}
+    .load-btn{width:100%;padding:8px;font-size:11px;background:var(--bg2);border:1px dashed var(--brd);border-radius:6px;color:var(--txt3);cursor:pointer;transition:all .2s}
+    .load-btn:hover{border-color:var(--acc);color:var(--acc)}
 
-    .accordion{display:flex;flex-direction:column;gap:4px;flex:1;overflow-y:auto;margin:0 -12px;padding:0 12px}
-    .section{background:var(--bg2);border-radius:6px;border:1px solid var(--brd);overflow:hidden}
-    .section.disabled{opacity:0.4;pointer-events:none}
-    .section-header{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;user-select:none}
-    .section-header:hover{background:rgba(255,255,255,0.03)}
-    .section-header img{width:20px;height:20px}
-    .section-header .name{flex:1;font-size:12px;font-weight:500;color:var(--txt)}
-    .section-header .chevron{font-size:10px;color:var(--txt3);transition:transform .2s}
-    .section.open .chevron{transform:rotate(180deg)}
-    .section-body{display:none;padding:0 12px 12px}
-    .section.open .section-body{display:block}
+    /* Right panel - Tools */
+    .tools-panel{flex:1;display:flex;flex-direction:column;gap:6px;overflow-y:auto;padding-right:4px}
 
+    /* Tool sections */
+    .tool{background:var(--bg2);border-radius:6px;border:1px solid var(--brd);overflow:hidden}
+    .tool.disabled{opacity:0.35;pointer-events:none}
+    .tool.active{border-color:var(--acc)}
+    .tool-header{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;user-select:none}
+    .tool-header:hover{background:rgba(255,255,255,0.02)}
+    .tool-header img{width:18px;height:18px;opacity:0.7}
+    .tool.active .tool-header img{opacity:1}
+    .tool-header .name{flex:1;font-size:12px;color:var(--txt2)}
+    .tool.active .tool-header .name{color:var(--txt);font-weight:500}
+    .tool-header input[type="checkbox"]{display:none}
+    .tool-header .toggle{width:16px;height:16px;border:1.5px solid var(--brd);border-radius:4px;display:flex;align-items:center;justify-content:center}
+    .tool-header .toggle svg{width:10px;height:10px;fill:none;stroke:var(--acc);stroke-width:2.5;opacity:0}
+    .tool.active .tool-header .toggle{border-color:var(--acc);background:var(--acc)}
+    .tool.active .tool-header .toggle svg{opacity:1;stroke:#000}
+    .tool-body{display:none;padding:6px 10px 10px;border-top:1px solid var(--brd)}
+    .tool.active .tool-body{display:block}
+
+    /* Tool options */
     .tool-opts{display:flex;flex-direction:column;gap:6px}
     .tool-row{display:flex;align-items:center;gap:8px}
-    .tool-row label{font-size:11px;color:var(--txt3);width:60px;flex-shrink:0}
-    .tool-row input[type="number"]{width:50px}
-    .tool-row input[type="range"]{flex:1}
-    .tool-opts .opt{font-size:11px;padding:4px 0}
-    .tool-apply{margin-top:8px;display:flex;justify-content:flex-end}
-    .tool-apply .btn{padding:6px 16px;font-size:11px}
+    .tool-row label{font-size:10px;color:var(--txt3);width:55px;flex-shrink:0}
+    .tool-row input[type="number"]{width:45px;padding:4px 6px;font-size:11px}
+    .tool-row input[type="range"]{flex:1;height:4px}
+    .tool-row .val{width:45px;font-size:10px;color:var(--acc2);text-align:right}
+    .tool-row select{flex:1;padding:6px 8px;font-size:11px;background:var(--bg3);color:var(--txt);border:1px solid var(--brd);border-radius:4px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M3 4l3 4 3-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;padding-right:24px}
+    .tool-row select:hover{border-color:var(--acc)}
+    .tool-row select:focus{outline:none;border-color:var(--acc)}
+    .tool-row select option{background:var(--bg2);color:var(--txt);padding:8px}
+    .tool-opts .opt{font-size:10px;padding:2px 0}
+    .tool-opts .opt .box{width:12px;height:12px}
 
-    .platforms{display:flex;flex-direction:column;gap:4px}
-    .platforms .opt{padding:6px 8px;background:var(--bg3);border-radius:4px}
-    .platform-info{font-size:9px;color:var(--txt3);margin-left:20px}
+    .platforms{display:flex;flex-wrap:wrap;gap:4px}
+    .platforms .opt{flex:1;min-width:80px;padding:6px 8px;background:var(--bg3);border-radius:4px;font-size:10px}
+    .platform-info{display:none}
 
-    .dim-row{display:flex;align-items:center;gap:6px}
-    .dim-row label{font-size:11px;color:var(--txt3);width:50px}
-    .dim-row input[type="range"]{flex:1;height:4px}
-    .dim-row .val{width:50px;font-size:11px;color:var(--acc2);text-align:right}
+    /* Bottom bar */
+    .bottom-bar{display:flex;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--brd)}
+    .bottom-bar .btn{flex:1}
+    .apply-btn{background:var(--acc)!important;color:#000!important;font-weight:600}
+    .apply-btn:disabled{opacity:0.5;cursor:not-allowed}
+
+    /* States */
+    .main.hide{display:none}
+    .bottom-bar.hide{display:none}
   </style>
 </head>
 <body>
 <div class="app">
-  <div class="hd"><b>PicLet</b><span id="toolTitle">All Tools</span></div>
+  <div class="hd">
+    <b>PicLet</b>
+    <span id="fileName">-</span>
+  </div>
   <div class="meta">
-    <div>File<b id="fn">-</b></div>
-    <div>Size<b id="sz">-</b></div>
+    <div>Original<b id="origSize">-</b></div>
+    <div>Output<b id="outSize">-</b></div>
   </div>
 
-  <!-- Main form -->
-  <div id="F" class="form">
-    <div class="preview-area" id="pA">
-      <span class="placeholder">Select a tool below</span>
-    </div>
-    <div class="preview-info" id="pI"></div>
-
-    <div class="accordion" id="accordion">
-      <!-- Make Icon -->
-      <div class="section" id="sec-makeicon" data-tool="makeicon" data-ext=".png,.ico">
-        <div class="section-header" onclick="toggle('makeicon')">
-          <img src="/icons/makeicon.ico" alt="">
-          <span class="name">Make Icon</span>
-          <span class="chevron">&#9660;</span>
-        </div>
-        <div class="section-body">
-          <div class="tool-opts">
-            <label class="opt" data-tip="Remove background before conversion"><input type="checkbox" id="mi-removeBg" onchange="miFuzzToggle()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Remove BG</label>
-            <div class="tool-row" id="mi-fuzzRow" style="display:none">
-              <label>Fuzz</label>
-              <input type="number" id="mi-fuzz" min="0" max="100" value="10" onchange="this.nextElementSibling.value=this.value">
-              <input type="range" id="mi-fuzzR" min="0" max="100" value="10" oninput="document.getElementById('mi-fuzz').value=this.value">
-            </div>
-            <label class="opt"><input type="checkbox" id="mi-trim" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Auto-trim</label>
-            <label class="opt"><input type="checkbox" id="mi-square" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Make square</label>
-          </div>
-          <div class="tool-apply"><button class="btn btn-p" onclick="apply('makeicon')">Convert to ICO</button></div>
-        </div>
+  <!-- Main content -->
+  <div class="main" id="M">
+    <!-- Preview panel -->
+    <div class="preview-panel">
+      <div class="preview-area" id="pA">
+        <span class="placeholder">Enable tools to preview</span>
       </div>
+      <div class="preview-info" id="pI"></div>
+      <button class="load-btn" onclick="loadNewImage()">Load Different Image...</button>
+      <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.gif,.bmp,.ico" style="display:none" onchange="handleFileSelect(event)">
+    </div>
 
+    <!-- Tools panel -->
+    <div class="tools-panel">
       <!-- Remove Background -->
-      <div class="section" id="sec-remove-bg" data-tool="remove-bg" data-ext=".png,.jpg,.jpeg,.ico">
-        <div class="section-header" onclick="toggle('remove-bg')">
+      <div class="tool" id="t-removebg" data-tool="removebg" data-ext=".png,.jpg,.jpeg,.ico">
+        <div class="tool-header" onclick="toggleTool('removebg')">
           <img src="/icons/removebg.ico" alt="">
           <span class="name">Remove Background</span>
-          <span class="chevron">&#9660;</span>
+          <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
         </div>
-        <div class="section-body">
+        <div class="tool-body">
           <div class="tool-opts">
-            <div class="tool-row" data-tip="Color matching sensitivity">
+            <div class="tool-row">
               <label>Tolerance</label>
-              <input type="number" id="rb-fuzz" min="0" max="100" value="10" onchange="this.nextElementSibling.value=this.value;schedulePreview()">
-              <input type="range" id="rb-fuzzR" min="0" max="100" value="10" oninput="document.getElementById('rb-fuzz').value=this.value" onchange="schedulePreview()">
+              <input type="range" id="rb-fuzz" min="0" max="100" value="10" oninput="$('rb-fuzzV').textContent=this.value+'%'" onchange="schedulePreview()">
+              <span class="val" id="rb-fuzzV">10%</span>
             </div>
-            <label class="opt"><input type="checkbox" id="rb-trim" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Auto-trim</label>
-            <label class="opt"><input type="checkbox" id="rb-edges" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Edges only</label>
-            <label class="opt"><input type="checkbox" id="rb-square" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Make square</label>
+            <label class="opt"><input type="checkbox" id="rb-trim" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Auto-trim edges</label>
+            <label class="opt"><input type="checkbox" id="rb-edges" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Border only (preserve inner)</label>
           </div>
-          <div class="tool-apply"><button class="btn btn-p" onclick="apply('remove-bg')">Remove BG</button></div>
         </div>
       </div>
 
       <!-- Scale Image -->
-      <div class="section" id="sec-rescale" data-tool="rescale" data-ext=".png,.jpg,.jpeg,.gif,.bmp,.ico">
-        <div class="section-header" onclick="toggle('rescale')">
+      <div class="tool" id="t-scale" data-tool="scale" data-ext=".png,.jpg,.jpeg,.gif,.bmp,.ico">
+        <div class="tool-header" onclick="toggleTool('scale')">
           <img src="/icons/rescale.ico" alt="">
           <span class="name">Scale Image</span>
-          <span class="chevron">&#9660;</span>
+          <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
         </div>
-        <div class="section-body">
+        <div class="tool-body">
           <div class="tool-opts">
-            <div class="dim-row">
+            <label class="opt"><input type="checkbox" id="sc-lock" checked onchange="toggleRatioLock()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Lock aspect ratio</label>
+            <div class="tool-row">
               <label>Width</label>
-              <input type="range" id="sc-width" min="16" max="1000" value="500" oninput="scUpdateVal()" onchange="schedulePreview()">
-              <span class="val" id="sc-widthV">500px</span>
+              <input type="range" id="sc-w" min="16" max="512" value="512" oninput="scaleSlide('w')" onchange="schedulePreview()">
+              <span class="val" id="sc-wV">512px</span>
             </div>
-            <div class="dim-row">
+            <div class="tool-row" id="sc-hRow">
               <label>Height</label>
-              <input type="range" id="sc-height" min="16" max="1000" value="500" oninput="scUpdateVal()" onchange="schedulePreview()">
-              <span class="val" id="sc-heightV">500px</span>
+              <input type="range" id="sc-h" min="16" max="512" value="512" oninput="scaleSlide('h')" onchange="schedulePreview()">
+              <span class="val" id="sc-hV">512px</span>
             </div>
-            <label class="opt"><input type="checkbox" id="sc-square" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Square output</label>
+            <label class="opt"><input type="checkbox" id="sc-sq" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Square output (add padding)</label>
           </div>
-          <div class="tool-apply"><button class="btn btn-p" onclick="apply('rescale')">Scale</button></div>
+        </div>
+      </div>
+
+      <!-- Make Icon -->
+      <div class="tool" id="t-makeicon" data-tool="makeicon" data-ext=".png,.ico">
+        <div class="tool-header" onclick="toggleTool('makeicon')">
+          <img src="/icons/makeicon.ico" alt="">
+          <span class="name">Convert to ICO</span>
+          <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
+        </div>
+        <div class="tool-body">
+          <div class="tool-opts">
+            <label class="opt"><input type="checkbox" id="mi-trim" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Trim before conversion</label>
+            <label class="opt"><input type="checkbox" id="mi-sq" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Make square</label>
+            <div style="font-size:9px;color:var(--txt3);margin-top:4px">Creates 256, 128, 64, 48, 32, 16px sizes</div>
+          </div>
         </div>
       </div>
 
       <!-- Icon Pack -->
-      <div class="section" id="sec-iconpack" data-tool="iconpack" data-ext=".png,.jpg,.jpeg,.ico">
-        <div class="section-header" onclick="toggle('iconpack')">
+      <div class="tool" id="t-iconpack" data-tool="iconpack" data-ext=".png,.jpg,.jpeg,.ico">
+        <div class="tool-header" onclick="toggleTool('iconpack')">
           <img src="/icons/iconpack.ico" alt="">
-          <span class="name">Icon Pack</span>
-          <span class="chevron">&#9660;</span>
+          <span class="name">Generate Icon Pack</span>
+          <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
         </div>
-        <div class="section-body">
+        <div class="tool-body">
           <div class="platforms">
-            <label class="opt"><input type="checkbox" id="ip-web" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Web<div class="platform-info">favicon, PWA, apple-touch-icon</div></label>
-            <label class="opt"><input type="checkbox" id="ip-android" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Android<div class="platform-info">mipmap folders, Play Store</div></label>
-            <label class="opt"><input type="checkbox" id="ip-ios" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>iOS<div class="platform-info">App icons, App Store</div></label>
+            <label class="opt"><input type="checkbox" id="ip-web" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Web</label>
+            <label class="opt"><input type="checkbox" id="ip-android" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Android</label>
+            <label class="opt"><input type="checkbox" id="ip-ios" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>iOS</label>
           </div>
-          <div class="tool-apply"><button class="btn btn-p" onclick="apply('iconpack')">Generate Pack</button></div>
         </div>
       </div>
 
       <!-- Store Pack -->
-      <div class="section" id="sec-storepack" data-tool="storepack" data-ext=".png,.jpg,.jpeg">
-        <div class="section-header" onclick="toggle('storepack')">
+      <div class="tool" id="t-storepack" data-tool="storepack" data-ext=".png,.jpg,.jpeg">
+        <div class="tool-header" onclick="toggleTool('storepack')">
           <img src="/icons/storepack.ico" alt="">
-          <span class="name">Store Pack</span>
-          <span class="chevron">&#9660;</span>
+          <span class="name">Generate Store Assets</span>
+          <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
         </div>
-        <div class="section-body">
+        <div class="tool-body">
           <div class="tool-opts">
             <div class="tool-row">
               <label>Preset</label>
-              <select id="sp-preset" style="flex:1"></select>
+              <select id="sp-preset"></select>
             </div>
             <div class="tool-row">
               <label>Scale</label>
-              <select id="sp-mode" style="flex:1">
+              <select id="sp-mode">
                 <option value="fit">Fit (letterbox)</option>
                 <option value="fill">Fill (crop)</option>
                 <option value="stretch">Stretch</option>
               </select>
             </div>
           </div>
-          <div class="tool-apply"><button class="btn btn-p" onclick="apply('storepack')">Generate</button></div>
         </div>
       </div>
     </div>
+  </div>
 
-    <div class="btns" style="margin-top:8px">
-      <button class="btn btn-g" onclick="PicLet.close()">Close</button>
-    </div>
+  <!-- Bottom bar -->
+  <div class="bottom-bar" id="B">
+    <button class="btn btn-g" onclick="PicLet.close()">Close</button>
+    <button class="btn apply-btn" id="applyBtn" onclick="apply()" disabled>Apply</button>
   </div>
 
   <!-- Loading state -->
@@ -188,7 +215,7 @@
     <h4 id="dT"></h4>
     <p id="dM"></p>
     <div class="btns" style="width:100%;margin-top:8px">
-      <button class="btn btn-g" onclick="resetForm()">Back</button>
+      <button class="btn btn-g" onclick="reset()">Back</button>
       <button class="btn btn-p" onclick="PicLet.close()">Done</button>
     </div>
   </div>
@@ -197,109 +224,161 @@
 const { $, log, fetchJson, postJson } = PicLet;
 const pA = $('pA'), pI = $('pI');
 
-let activeTool = null;
 let imageInfo = {};
 let previewTimeout = null;
+let activeTools = new Set();
 let presets = [];
 
-// Toggle accordion section
-function toggle(tool) {
-  const sec = $('sec-' + tool);
-  if (!sec || sec.classList.contains('disabled')) return;
+// Toggle tool active state
+function toggleTool(tool) {
+  const el = $('t-' + tool);
+  if (!el || el.classList.contains('disabled')) return;
 
-  const wasOpen = sec.classList.contains('open');
-
-  // Close all sections
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('open'));
-
-  // Open clicked section if it was closed
-  if (!wasOpen) {
-    sec.classList.add('open');
-    activeTool = tool;
-    $('toolTitle').textContent = sec.querySelector('.name').textContent;
-    schedulePreview();
+  if (activeTools.has(tool)) {
+    activeTools.delete(tool);
+    el.classList.remove('active');
   } else {
-    activeTool = null;
-    $('toolTitle').textContent = 'All Tools';
-    pA.innerHTML = '<span class="placeholder">Select a tool below</span>';
-    pI.textContent = '';
+    activeTools.add(tool);
+    el.classList.add('active');
   }
+
+  updateApplyButton();
+  schedulePreview();
 }
 
-// Filter sections by file extension
-function filterSections(ext) {
-  document.querySelectorAll('.section').forEach(sec => {
-    const exts = sec.dataset.ext.split(',');
-    sec.classList.toggle('disabled', !exts.includes(ext));
+// Update apply button state
+function updateApplyButton() {
+  $('applyBtn').disabled = activeTools.size === 0;
+}
+
+// Filter tools by file extension
+function filterTools(ext) {
+  document.querySelectorAll('.tool').forEach(el => {
+    const exts = el.dataset.ext.split(',');
+    el.classList.toggle('disabled', !exts.includes(ext));
+    if (!exts.includes(ext)) {
+      activeTools.delete(el.dataset.tool);
+      el.classList.remove('active');
+    }
   });
 }
 
-// Make Icon fuzz toggle
-function miFuzzToggle() {
-  const show = $('mi-removeBg').checked;
-  $('mi-fuzzRow').style.display = show ? 'flex' : 'none';
-}
+// Scale slider update with aspect ratio lock
+let aspectRatio = 1;
 
-// Scale value display
-function scUpdateVal() {
-  $('sc-widthV').textContent = $('sc-width').value + 'px';
-  $('sc-heightV').textContent = $('sc-height').value + 'px';
-}
+function scaleSlide(dim) {
+  const locked = $('sc-lock').checked;
+  const w = $('sc-w'), h = $('sc-h');
 
-// Get options for current tool
-function getOptions(tool) {
-  switch (tool) {
-    case 'makeicon':
-      return {
-        removeBg: $('mi-removeBg').checked,
-        fuzz: +$('mi-fuzz').value || 10,
-        trim: $('mi-trim').checked,
-        makeSquare: $('mi-square').checked
-      };
-    case 'remove-bg':
-      return {
-        fuzz: +$('rb-fuzz').value || 10,
-        trim: $('rb-trim').checked,
-        preserveInner: $('rb-edges').checked,
-        makeSquare: $('rb-square').checked
-      };
-    case 'rescale':
-      return {
-        width: +$('sc-width').value,
-        height: +$('sc-height').value,
-        makeSquare: $('sc-square').checked
-      };
-    case 'iconpack':
-      return {
-        web: $('ip-web').checked,
-        android: $('ip-android').checked,
-        ios: $('ip-ios').checked
-      };
-    case 'storepack':
-      return {
-        preset: $('sp-preset').value,
-        scaleMode: $('sp-mode').value
-      };
-    default:
-      return {};
+  if (locked) {
+    // When locked, only width slider is used - calculate height from ratio
+    const newW = +w.value;
+    const newH = Math.round(newW / aspectRatio);
+    h.value = Math.min(newH, +h.max);
+    $('sc-wV').textContent = newW + 'px';
+    $('sc-hV').textContent = h.value + 'px';
+  } else {
+    // Independent sliders
+    $('sc-' + dim + 'V').textContent = $('sc-' + dim).value + 'px';
   }
 }
 
-// Schedule preview (debounced)
+function toggleRatioLock() {
+  const locked = $('sc-lock').checked;
+  $('sc-hRow').style.display = locked ? 'none' : 'flex';
+
+  if (locked) {
+    // Recalculate height based on current width and aspect ratio
+    const newH = Math.round(+$('sc-w').value / aspectRatio);
+    $('sc-h').value = Math.min(newH, +$('sc-h').max);
+    $('sc-hV').textContent = $('sc-h').value + 'px';
+  }
+  schedulePreview();
+}
+
+// Get combined options for all active tools
+function getOptions() {
+  const opts = { tools: Array.from(activeTools) };
+
+  if (activeTools.has('removebg')) {
+    opts.removebg = {
+      fuzz: +$('rb-fuzz').value,
+      trim: $('rb-trim').checked,
+      preserveInner: $('rb-edges').checked
+    };
+  }
+
+  if (activeTools.has('scale')) {
+    opts.scale = {
+      width: +$('sc-w').value,
+      height: +$('sc-h').value,
+      makeSquare: $('sc-sq').checked
+    };
+  }
+
+  if (activeTools.has('makeicon')) {
+    opts.makeicon = {
+      trim: $('mi-trim').checked,
+      makeSquare: $('mi-sq').checked
+    };
+  }
+
+  if (activeTools.has('iconpack')) {
+    opts.iconpack = {
+      web: $('ip-web').checked,
+      android: $('ip-android').checked,
+      ios: $('ip-ios').checked
+    };
+  }
+
+  if (activeTools.has('storepack')) {
+    opts.storepack = {
+      preset: $('sp-preset').value,
+      scaleMode: $('sp-mode').value
+    };
+  }
+
+  return opts;
+}
+
+// Schedule preview
 function schedulePreview() {
-  if (!activeTool) return;
   if (previewTimeout) clearTimeout(previewTimeout);
   previewTimeout = setTimeout(generatePreview, 300);
 }
 
+// Show original image
+async function showOriginal() {
+  pA.innerHTML = '<div class="mini-sp"></div>';
+  try {
+    const result = await postJson('/api/preview', { tools: [], original: true });
+    if (result.success && result.imageData) {
+      const img = document.createElement('img');
+      img.src = result.imageData;
+      pA.innerHTML = '';
+      pA.appendChild(img);
+      pI.textContent = `${imageInfo.width} × ${imageInfo.height}`;
+    }
+  } catch (e) {
+    pA.innerHTML = '<span class="placeholder">Failed to load image</span>';
+  }
+}
+
 // Generate preview
 async function generatePreview() {
-  if (!activeTool) return;
+  if (activeTools.size === 0) {
+    showOriginal();
+    $('outSize').textContent = '-';
+    return;
+  }
 
-  // Only some tools support preview
-  if (!['remove-bg', 'rescale', 'makeicon'].includes(activeTool)) {
-    pA.innerHTML = '<span class="placeholder">Preview not available</span>';
-    pI.textContent = '';
+  // Icon pack and store pack don't have meaningful previews
+  const previewableTools = ['removebg', 'scale', 'makeicon'];
+  const hasPreviewable = Array.from(activeTools).some(t => previewableTools.includes(t));
+
+  if (!hasPreviewable) {
+    showOriginal();
+    $('outSize').textContent = '(multiple files)';
     return;
   }
 
@@ -307,14 +386,16 @@ async function generatePreview() {
   pI.textContent = '';
 
   try {
-    const result = await postJson('/api/preview', { tool: activeTool, ...getOptions(activeTool) });
+    const result = await postJson('/api/preview', getOptions());
     if (result.success && result.imageData) {
       const img = document.createElement('img');
       img.src = result.imageData;
-      img.alt = 'Preview';
       pA.innerHTML = '';
       pA.appendChild(img);
-      pI.textContent = result.width && result.height ? `${result.width}x${result.height}` : '';
+      if (result.width && result.height) {
+        pI.textContent = `${result.width} × ${result.height}`;
+        $('outSize').textContent = `${result.width}×${result.height}`;
+      }
     } else {
       pA.innerHTML = '<span class="placeholder">' + (result.error || 'Preview failed') + '</span>';
     }
@@ -323,24 +404,71 @@ async function generatePreview() {
   }
 }
 
-// Apply tool
-async function apply(tool) {
-  $('F').classList.add('hide');
+// Load new image
+function loadNewImage() {
+  $('fileInput').click();
+}
+
+async function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // Send file path to server to reload
+  try {
+    const result = await postJson('/api/load', { fileName: file.name, filePath: file.path });
+    if (result.success) {
+      imageInfo = result;
+      updateImageInfo();
+      schedulePreview();
+    }
+  } catch (err) {
+    // For now, just show the file name - actual loading requires server support
+    alert('To load a different image, drag it onto PicLet in Explorer or run: piclet piclet "' + file.name + '"');
+  }
+  e.target.value = '';
+}
+
+// Update displayed image info
+function updateImageInfo() {
+  $('fileName').textContent = imageInfo.fileName;
+  $('origSize').textContent = imageInfo.width + '×' + imageInfo.height;
+
+  const ext = '.' + imageInfo.fileName.split('.').pop().toLowerCase();
+  filterTools(ext);
+
+  // Calculate aspect ratio
+  aspectRatio = imageInfo.width / imageInfo.height;
+
+  // Set scale sliders max to image dimensions (can't upscale)
+  $('sc-w').max = imageInfo.width;
+  $('sc-h').max = imageInfo.height;
+  $('sc-w').value = imageInfo.width;
+  $('sc-h').value = imageInfo.height;
+  $('sc-wV').textContent = imageInfo.width + 'px';
+  $('sc-hV').textContent = imageInfo.height + 'px';
+
+  // Initialize ratio lock state (hide height row if locked)
+  toggleRatioLock();
+}
+
+// Apply all selected tools
+async function apply() {
+  if (activeTools.size === 0) return;
+
+  $('M').classList.add('hide');
+  $('B').classList.add('hide');
   $('L').classList.add('on');
   $('G').classList.add('on');
   $('G').innerHTML = '';
 
-  const toolNames = {
-    'makeicon': 'Converting to ICO...',
-    'remove-bg': 'Removing background...',
-    'rescale': 'Scaling image...',
-    'iconpack': 'Generating icon pack...',
-    'storepack': 'Generating store pack...'
-  };
-  $('lT').textContent = toolNames[tool] || 'Processing...';
+  const toolNames = Array.from(activeTools).map(t => {
+    const names = { removebg: 'Remove BG', scale: 'Scale', makeicon: 'Make ICO', iconpack: 'Icon Pack', storepack: 'Store Pack' };
+    return names[t] || t;
+  });
+  $('lT').textContent = toolNames.join(' → ') + '...';
 
   try {
-    const result = await postJson('/api/process', { tool, ...getOptions(tool) });
+    const result = await postJson('/api/process', getOptions());
 
     if (result.logs) {
       result.logs.forEach(l => log('G', l.type[0], l.message));
@@ -359,31 +487,20 @@ async function apply(tool) {
   }
 }
 
-// Reset form to allow another operation
-function resetForm() {
+// Reset to main view
+function reset() {
   $('D').classList.remove('on', 'ok', 'err');
   $('G').classList.remove('on');
-  $('F').classList.remove('hide');
+  $('M').classList.remove('hide');
+  $('B').classList.remove('hide');
 }
 
-// Load initial data
+// Init
 fetchJson('/api/info').then(d => {
   imageInfo = d;
-  $('fn').textContent = d.fileName;
-  $('sz').textContent = d.width + 'x' + d.height;
+  updateImageInfo();
 
-  // Get file extension
-  const ext = '.' + d.fileName.split('.').pop().toLowerCase();
-  filterSections(ext);
-
-  // Set scale sliders max to image size
-  $('sc-width').max = d.width;
-  $('sc-height').max = d.height;
-  $('sc-width').value = d.width;
-  $('sc-height').value = d.height;
-  scUpdateVal();
-
-  // Load store presets
+  // Load presets for store pack
   if (d.presets) {
     presets = d.presets;
     const sel = $('sp-preset');
@@ -395,11 +512,8 @@ fetchJson('/api/info').then(d => {
     });
   }
 
-  // Auto-open first available section
-  const firstAvailable = document.querySelector('.section:not(.disabled)');
-  if (firstAvailable) {
-    toggle(firstAvailable.dataset.tool);
-  }
+  // Show original image immediately
+  showOriginal();
 });
 </script>
 </body>
