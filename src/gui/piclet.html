@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html data-piclet data-width="620" data-height="520">
+<html data-piclet data-width="620" data-height="560">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -12,8 +12,9 @@
 
     /* Left panel - Preview */
     .preview-panel{width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
-    .preview-area{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:6px;overflow:hidden;position:relative;min-height:180px}
+    .preview-area{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:6px;overflow:hidden;position:relative;min-height:180px;transition:border-color .2s}
     .preview-area::before{content:'';position:absolute;inset:0;background:repeating-conic-gradient(#1a1a1d 0% 25%, #222 0% 50%) 50%/16px 16px;z-index:0}
+    .preview-area.dragover{border:2px dashed var(--acc);background:rgba(255,204,0,0.05)}
     .preview-area img{max-width:100%;max-height:100%;object-fit:contain;position:relative;z-index:1}
     .preview-area .placeholder{position:relative;z-index:1;font-size:11px;color:var(--txt3);text-align:center;padding:12px}
     .preview-area .mini-sp{width:20px;height:20px;border:2px solid var(--bg3);border-top-color:var(--acc);border-radius:50%;animation:s .5s linear infinite;position:relative;z-index:1}
@@ -56,9 +57,28 @@
     .tool-opts .opt{font-size:10px;padding:2px 0}
     .tool-opts .opt .box{width:12px;height:12px}
 
-    .platforms{display:flex;flex-wrap:wrap;gap:4px}
-    .platforms .opt{flex:1;min-width:80px;padding:6px 8px;background:var(--bg3);border-radius:4px;font-size:10px}
+    .platforms{display:flex;gap:4px}
+    .platforms .opt{flex:1;padding:6px 8px;background:var(--bg3);border-radius:4px;font-size:10px;white-space:nowrap}
     .platform-info{display:none}
+
+    /* Dimension list */
+    .dim-list{display:flex;flex-wrap:wrap;gap:4px;max-height:80px;overflow-y:auto;margin-bottom:6px}
+    .dim-item{display:flex;align-items:center;gap:4px;padding:3px 6px;background:var(--bg3);border-radius:4px;font-size:10px;color:var(--txt2)}
+    .dim-item .dim-x{color:var(--txt3);font-size:9px}
+    .dim-item .dim-rm{width:12px;height:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--txt3);border-radius:2px;margin-left:2px}
+    .dim-item .dim-rm:hover{background:rgba(255,100,100,0.2);color:#f66}
+    .dim-add{display:flex;align-items:center;gap:4px;margin-bottom:8px}
+    .dim-add input{width:50px;padding:4px 6px;font-size:10px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--txt);-moz-appearance:textfield}
+    .dim-add input::-webkit-outer-spin-button,.dim-add input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+    .dim-add span{color:var(--txt3);font-size:10px}
+    .dim-add-btn{width:22px;height:22px;padding:0;font-size:14px;background:var(--acc);border:none;border-radius:4px;color:#000;cursor:pointer;font-weight:bold}
+    .dim-add-btn:hover{background:var(--acc2)}
+    .preset-actions{display:flex;gap:4px}
+    .preset-actions input{flex:1;padding:5px 8px;font-size:10px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--txt)}
+    .btn-sm{padding:5px 10px;font-size:10px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--txt);cursor:pointer}
+    .btn-sm:hover{border-color:var(--acc);color:var(--acc)}
+    .btn-sm.btn-del{color:#a66}
+    .btn-sm.btn-del:hover{border-color:#c44;color:#c44}
 
     /* Bottom bar */
     .bottom-bar{display:flex;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--brd)}
@@ -69,6 +89,19 @@
     /* States */
     .main.hide{display:none}
     .bottom-bar.hide{display:none}
+
+    /* Themed alert modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+    .modal-overlay.on{opacity:1;pointer-events:auto}
+    .modal{background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:16px 20px;min-width:200px;max-width:300px;text-align:center}
+    .modal-msg{font-size:12px;color:var(--txt);margin-bottom:12px}
+    .modal-btns{display:flex;gap:8px;justify-content:center}
+    .modal-btn{padding:6px 20px;font-size:11px;background:var(--acc);border:none;border-radius:4px;color:#000;cursor:pointer;font-weight:500}
+    .modal-btn:hover{background:var(--acc2)}
+    .modal-btn.danger{background:#c44;color:#fff}
+    .modal-btn.danger:hover{background:#a33}
+    .modal-btn.secondary{background:var(--bg3);color:var(--txt);border:1px solid var(--brd)}
+    .modal-btn.secondary:hover{border-color:var(--acc)}
   </style>
 </head>
 <body>
@@ -125,7 +158,6 @@
         </div>
         <div class="tool-body">
           <div class="tool-opts">
-            <label class="opt"><input type="checkbox" id="sc-lock" checked onchange="toggleRatioLock()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Lock aspect ratio</label>
             <div class="tool-row">
               <label>Width</label>
               <input type="range" id="sc-w" min="16" max="512" value="512" oninput="scaleSlide('w')" onchange="schedulePreview()">
@@ -136,44 +168,35 @@
               <input type="range" id="sc-h" min="16" max="512" value="512" oninput="scaleSlide('h')" onchange="schedulePreview()">
               <span class="val" id="sc-hV">512px</span>
             </div>
+            <label class="opt"><input type="checkbox" id="sc-lock" onchange="toggleRatioLock()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Lock aspect ratio</label>
             <label class="opt"><input type="checkbox" id="sc-sq" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Square output (add padding)</label>
           </div>
         </div>
       </div>
 
-      <!-- Make Icon -->
-      <div class="tool" id="t-makeicon" data-tool="makeicon" data-ext=".png,.ico">
-        <div class="tool-header" onclick="toggleTool('makeicon')">
-          <img src="/icons/makeicon.ico" alt="">
-          <span class="name">Convert to ICO</span>
+      <!-- Generate Icons (combined ICO + Icon Pack) -->
+      <div class="tool" id="t-icons" data-tool="icons" data-ext=".png,.jpg,.jpeg,.ico">
+        <div class="tool-header" onclick="toggleTool('icons')">
+          <img src="/icons/iconpack.ico" alt="">
+          <span class="name">Generate Icons</span>
           <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
         </div>
         <div class="tool-body">
           <div class="tool-opts">
-            <label class="opt"><input type="checkbox" id="mi-trim" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Trim before conversion</label>
-            <label class="opt"><input type="checkbox" id="mi-sq" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Make square</label>
-            <div style="font-size:9px;color:var(--txt3);margin-top:4px">Creates 256, 128, 64, 48, 32, 16px sizes</div>
+            <label class="opt"><input type="checkbox" id="ic-trim" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Auto-trim transparent edges</label>
+            <label class="opt"><input type="checkbox" id="ic-sq" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Make square before generating</label>
           </div>
-        </div>
-      </div>
-
-      <!-- Icon Pack -->
-      <div class="tool" id="t-iconpack" data-tool="iconpack" data-ext=".png,.jpg,.jpeg,.ico">
-        <div class="tool-header" onclick="toggleTool('iconpack')">
-          <img src="/icons/iconpack.ico" alt="">
-          <span class="name">Generate Icon Pack</span>
-          <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
-        </div>
-        <div class="tool-body">
+          <div style="font-size:9px;color:var(--txt3);margin:6px 0 4px;text-transform:uppercase">Output Formats</div>
           <div class="platforms">
-            <label class="opt"><input type="checkbox" id="ip-web" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Web</label>
-            <label class="opt"><input type="checkbox" id="ip-android" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Android</label>
-            <label class="opt"><input type="checkbox" id="ip-ios" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>iOS</label>
+            <label class="opt"><input type="checkbox" id="ic-ico" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>ICO</label>
+            <label class="opt"><input type="checkbox" id="ic-web"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Web</label>
+            <label class="opt"><input type="checkbox" id="ic-android"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Android</label>
+            <label class="opt"><input type="checkbox" id="ic-ios"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>iOS</label>
           </div>
         </div>
       </div>
 
-      <!-- Store Pack -->
+      <!-- Generate Store Assets -->
       <div class="tool" id="t-storepack" data-tool="storepack" data-ext=".png,.jpg,.jpeg">
         <div class="tool-header" onclick="toggleTool('storepack')">
           <img src="/icons/storepack.ico" alt="">
@@ -184,7 +207,7 @@
           <div class="tool-opts">
             <div class="tool-row">
               <label>Preset</label>
-              <select id="sp-preset"></select>
+              <select id="sp-preset" onchange="onPresetChange()"></select>
             </div>
             <div class="tool-row">
               <label>Scale</label>
@@ -194,6 +217,19 @@
                 <option value="stretch">Stretch</option>
               </select>
             </div>
+          </div>
+          <div style="font-size:9px;color:var(--txt3);margin:8px 0 4px;text-transform:uppercase">Output Sizes</div>
+          <div class="dim-list" id="sp-dims"></div>
+          <div class="dim-add">
+            <input type="number" id="sp-newW" placeholder="W" min="1" max="9999">
+            <span>×</span>
+            <input type="number" id="sp-newH" placeholder="H" min="1" max="9999">
+            <button class="dim-add-btn" onclick="addDimension()">+</button>
+          </div>
+          <div class="preset-actions">
+            <input type="text" id="sp-name" placeholder="Preset name...">
+            <button class="btn-sm" onclick="saveCurrentPreset()">Save</button>
+            <button class="btn-sm btn-del" onclick="deleteCurrentPreset()">Delete</button>
           </div>
         </div>
       </div>
@@ -220,14 +256,59 @@
     </div>
   </div>
 </div>
+
+<!-- Themed alert/confirm modal -->
+<div class="modal-overlay" id="modal" onclick="hideModal(event)">
+  <div class="modal">
+    <div class="modal-msg" id="modalMsg"></div>
+    <div class="modal-btns" id="modalBtns">
+      <button class="modal-btn" onclick="hideModal()">OK</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const { $, log, fetchJson, postJson } = PicLet;
+
+// Themed alert/confirm
+let modalCallback = null;
+
+function showAlert(msg) {
+  $('modalMsg').textContent = msg;
+  $('modalBtns').innerHTML = '<button class="modal-btn" onclick="hideModal()">OK</button>';
+  $('modal').classList.add('on');
+  modalCallback = null;
+}
+
+function showConfirm(msg, onConfirm, dangerText = 'Delete') {
+  $('modalMsg').textContent = msg;
+  $('modalBtns').innerHTML = `
+    <button class="modal-btn secondary" onclick="hideModal()">Cancel</button>
+    <button class="modal-btn danger" onclick="confirmModal()">${dangerText}</button>
+  `;
+  $('modal').classList.add('on');
+  modalCallback = onConfirm;
+}
+
+function hideModal(e) {
+  if (!e || e.target === $('modal')) {
+    $('modal').classList.remove('on');
+    modalCallback = null;
+  }
+}
+
+function confirmModal() {
+  $('modal').classList.remove('on');
+  if (modalCallback) modalCallback();
+  modalCallback = null;
+}
 const pA = $('pA'), pI = $('pI');
 
 let imageInfo = {};
 let previewTimeout = null;
 let activeTools = new Set();
 let presets = [];
+let currentDimensions = []; // Editable dimensions for storepack
 
 // Toggle tool active state
 function toggleTool(tool) {
@@ -265,6 +346,7 @@ function filterTools(ext) {
 
 // Scale slider update with aspect ratio lock
 let aspectRatio = 1;
+let scaleDebounce = null;
 
 function scaleSlide(dim) {
   const locked = $('sc-lock').checked;
@@ -281,6 +363,10 @@ function scaleSlide(dim) {
     // Independent sliders
     $('sc-' + dim + 'V').textContent = $('sc-' + dim).value + 'px';
   }
+
+  // Debounced preview update while sliding
+  if (scaleDebounce) clearTimeout(scaleDebounce);
+  scaleDebounce = setTimeout(schedulePreview, 150);
 }
 
 function toggleRatioLock() {
@@ -316,25 +402,24 @@ function getOptions() {
     };
   }
 
-  if (activeTools.has('makeicon')) {
-    opts.makeicon = {
-      trim: $('mi-trim').checked,
-      makeSquare: $('mi-sq').checked
-    };
-  }
-
-  if (activeTools.has('iconpack')) {
-    opts.iconpack = {
-      web: $('ip-web').checked,
-      android: $('ip-android').checked,
-      ios: $('ip-ios').checked
+  if (activeTools.has('icons')) {
+    opts.icons = {
+      trim: $('ic-trim').checked,
+      makeSquare: $('ic-sq').checked,
+      ico: $('ic-ico').checked,
+      web: $('ic-web').checked,
+      android: $('ic-android').checked,
+      ios: $('ic-ios').checked
     };
   }
 
   if (activeTools.has('storepack')) {
+    const presetSel = $('sp-preset');
+    const presetName = presetSel.value || $('sp-name').value.trim() || 'custom';
     opts.storepack = {
-      preset: $('sp-preset').value,
-      scaleMode: $('sp-mode').value
+      dimensions: currentDimensions,
+      scaleMode: $('sp-mode').value,
+      presetName: presetName
     };
   }
 
@@ -372,8 +457,8 @@ async function generatePreview() {
     return;
   }
 
-  // Icon pack and store pack don't have meaningful previews
-  const previewableTools = ['removebg', 'scale', 'makeicon'];
+  // Icon pack and store pack don't have meaningful previews (icons does though - shows trimmed/squared source)
+  const previewableTools = ['removebg', 'scale', 'icons'];
   const hasPreviewable = Array.from(activeTools).some(t => previewableTools.includes(t));
 
   if (!hasPreviewable) {
@@ -412,20 +497,65 @@ function loadNewImage() {
 async function handleFileSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
-
-  // Send file path to server to reload
-  try {
-    const result = await postJson('/api/load', { fileName: file.name, filePath: file.path });
-    if (result.success) {
-      imageInfo = result;
-      updateImageInfo();
-      schedulePreview();
-    }
-  } catch (err) {
-    // For now, just show the file name - actual loading requires server support
-    alert('To load a different image, drag it onto PicLet in Explorer or run: piclet piclet "' + file.name + '"');
-  }
+  await loadImageFile(file);
   e.target.value = '';
+}
+
+// Load image file (shared by file input and drag/drop)
+async function loadImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const base64 = reader.result.split(',')[1]; // Remove data URL prefix
+      const result = await postJson('/api/load', {
+        fileName: file.name,
+        data: base64,
+        mimeType: file.type
+      });
+      if (result.success) {
+        imageInfo = result;
+        updateImageInfo();
+        showOriginal();
+      } else {
+        showAlert('Failed to load image: ' + (result.error || 'Unknown error'));
+      }
+    } catch (err) {
+      showAlert('Failed to load image: ' + err.message);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// Drag and drop handlers
+function setupDragDrop() {
+  const area = pA;
+
+  area.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    area.classList.add('dragover');
+  });
+
+  area.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    area.classList.remove('dragover');
+  });
+
+  area.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    area.classList.remove('dragover');
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Check if it's an image
+      if (file.type.startsWith('image/') || /\.(png|jpg|jpeg|gif|bmp|ico)$/i.test(file.name)) {
+        loadImageFile(file);
+      }
+    }
+  });
 }
 
 // Update displayed image info
@@ -446,9 +576,174 @@ function updateImageInfo() {
   $('sc-h').value = imageInfo.height;
   $('sc-wV').textContent = imageInfo.width + 'px';
   $('sc-hV').textContent = imageInfo.height + 'px';
+}
 
-  // Initialize ratio lock state (hide height row if locked)
-  toggleRatioLock();
+// ── Store Assets Preset Management ──
+
+// Handle preset selection change
+function onPresetChange() {
+  const sel = $('sp-preset');
+  const preset = presets.find(p => p.id === sel.value);
+  console.log('Selected preset:', sel.value, preset);
+  if (preset && preset.icons && preset.icons.length > 0) {
+    currentDimensions = preset.icons.map(i => ({ width: i.width, height: i.height, filename: i.filename }));
+    $('sp-name').value = preset.name;
+    console.log('Loaded dimensions:', currentDimensions);
+  } else {
+    currentDimensions = [];
+    $('sp-name').value = sel.value ? (preset?.name || '') : '';
+  }
+  renderDimensions();
+}
+
+// Render dimension chips
+function renderDimensions() {
+  const container = $('sp-dims');
+  container.innerHTML = currentDimensions.map((d, i) =>
+    `<div class="dim-item"><span>${d.width}</span><span class="dim-x">×</span><span>${d.height}</span><span class="dim-rm" onclick="removeDimension(${i})">×</span></div>`
+  ).join('');
+}
+
+// Add a new dimension
+function addDimension() {
+  const w = +$('sp-newW').value;
+  const h = +$('sp-newH').value;
+  console.log('Adding dimension:', w, h);
+  if (w > 0 && h > 0) {
+    // Avoid duplicates
+    if (!currentDimensions.some(d => d.width === w && d.height === h)) {
+      currentDimensions.push({ width: w, height: h, filename: `${w}x${h}.png` });
+      console.log('Current dimensions:', currentDimensions);
+      renderDimensions();
+    }
+    $('sp-newW').value = '';
+    $('sp-newH').value = '';
+  } else {
+    console.log('Invalid dimensions - w or h not > 0');
+  }
+}
+
+// Remove a dimension
+function removeDimension(idx) {
+  currentDimensions.splice(idx, 1);
+  renderDimensions();
+}
+
+// Save current dimensions as preset
+async function saveCurrentPreset() {
+  console.log('Saving preset, currentDimensions:', currentDimensions);
+  const name = $('sp-name').value.trim();
+  if (!name) {
+    showAlert('Please enter a preset name');
+    return;
+  }
+  if (currentDimensions.length === 0) {
+    showAlert('Please add at least one dimension');
+    return;
+  }
+
+  // Use selected preset ID if editing, otherwise generate from name
+  const selectedId = $('sp-preset').value;
+  const id = selectedId || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const preset = {
+    id,
+    name,
+    description: 'Custom preset',
+    icons: currentDimensions.map(d => ({
+      filename: d.filename || `${d.width}x${d.height}.png`,
+      width: d.width,
+      height: d.height
+    }))
+  };
+
+  const btn = document.querySelector('.preset-actions .btn-sm');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    const result = await postJson('/api/save-preset', preset);
+    if (result.success) {
+      // Update presets list and select the new one
+      const existing = presets.findIndex(p => p.id === id);
+      if (existing >= 0) {
+        presets[existing] = preset;
+      } else {
+        presets.push(preset);
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = name;
+        $('sp-preset').appendChild(opt);
+      }
+      $('sp-preset').value = id;
+
+      // Show success feedback
+      btn.textContent = 'Saved!';
+      btn.style.borderColor = '#4c6';
+      btn.style.color = '#4c6';
+      setTimeout(() => {
+        btn.textContent = 'Save Preset';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        btn.disabled = false;
+      }, 1500);
+    } else {
+      btn.textContent = 'Failed';
+      btn.style.borderColor = '#f66';
+      btn.style.color = '#f66';
+      setTimeout(() => {
+        btn.textContent = 'Save Preset';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        btn.disabled = false;
+      }, 1500);
+    }
+  } catch (e) {
+    btn.textContent = 'Error';
+    btn.style.borderColor = '#f66';
+    btn.style.color = '#f66';
+    setTimeout(() => {
+      btn.textContent = 'Save Preset';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.disabled = false;
+    }, 1500);
+  }
+}
+
+// Delete current preset
+function deleteCurrentPreset() {
+  const selectedId = $('sp-preset').value;
+  if (!selectedId) {
+    showAlert('No preset selected to delete');
+    return;
+  }
+
+  const preset = presets.find(p => p.id === selectedId);
+  const presetName = preset?.name || selectedId;
+
+  showConfirm(`Delete preset "${presetName}"?\n\nThis cannot be undone.`, async () => {
+    try {
+      const result = await postJson('/api/delete-preset', { id: selectedId });
+      if (result.success) {
+        // Remove from local presets array
+        const idx = presets.findIndex(p => p.id === selectedId);
+        if (idx >= 0) presets.splice(idx, 1);
+
+        // Remove from dropdown and reset
+        const sel = $('sp-preset');
+        const opt = sel.querySelector(`option[value="${selectedId}"]`);
+        if (opt) opt.remove();
+        sel.value = '';
+        onPresetChange();
+
+        showAlert('Preset deleted');
+      } else {
+        showAlert('Failed to delete: ' + (result.error || 'Unknown error'));
+      }
+    } catch (e) {
+      showAlert('Failed to delete: ' + e.message);
+    }
+  });
 }
 
 // Apply all selected tools
@@ -462,7 +757,7 @@ async function apply() {
   $('G').innerHTML = '';
 
   const toolNames = Array.from(activeTools).map(t => {
-    const names = { removebg: 'Remove BG', scale: 'Scale', makeicon: 'Make ICO', iconpack: 'Icon Pack', storepack: 'Store Pack' };
+    const names = { removebg: 'Remove BG', scale: 'Scale', icons: 'Icons', storepack: 'Store Assets' };
     return names[t] || t;
   });
   $('lT').textContent = toolNames.join(' → ') + '...';
@@ -496,14 +791,19 @@ function reset() {
 }
 
 // Init
+setupDragDrop();
+
 fetchJson('/api/info').then(d => {
   imageInfo = d;
   updateImageInfo();
 
-  // Load presets for store pack
-  if (d.presets) {
-    presets = d.presets;
+  // Load presets for store pack (full preset data)
+  const presetData = d.defaults?.presets || d.presets || [];
+  console.log('Loaded presets:', presetData);
+  if (presetData.length > 0) {
+    presets = presetData;
     const sel = $('sp-preset');
+    sel.innerHTML = '<option value="">Custom...</option>';
     presets.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;

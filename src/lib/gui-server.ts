@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
+import { deletePreset, savePreset, type Preset } from './presets.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -60,6 +61,15 @@ export interface GuiServerOptions {
 		error?: string;
 		logs: Array<{ type: string; message: string }>;
 	}>;
+	onLoadImage?: (data: { fileName: string; data: string; mimeType: string }) => Promise<{
+		success: boolean;
+		filePath?: string;
+		fileName?: string;
+		width?: number;
+		height?: number;
+		borderColor?: string | null;
+		error?: string;
+	}>;
 }
 
 /**
@@ -69,7 +79,16 @@ export interface GuiServerOptions {
 export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 	return new Promise((resolve) => {
 		const app = express();
-		app.use(express.json());
+		app.use(express.json({ limit: '50mb' })); // Allow large base64 images
+
+		// Handle JSON parse errors
+		app.use((err: Error, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+			if (err instanceof SyntaxError && 'body' in err) {
+				res.status(400).json({ success: false, error: 'Invalid JSON: ' + err.message });
+				return;
+			}
+			next(err);
+		});
 
 		let processResult: boolean | null = null;
 		let server: ReturnType<typeof createServer> | null = null;
@@ -129,6 +148,28 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 			}
 		});
 
+		// API: Load new image
+		app.post('/api/load', async (req, res) => {
+			if (!options.onLoadImage) {
+				res.json({ success: false, error: 'Load not supported' });
+				return;
+			}
+			try {
+				const result = await options.onLoadImage(req.body);
+				if (result.success) {
+					// Update current image info
+					options.imageInfo.filePath = result.filePath!;
+					options.imageInfo.fileName = result.fileName!;
+					options.imageInfo.width = result.width!;
+					options.imageInfo.height = result.height!;
+					options.imageInfo.borderColor = result.borderColor ?? null;
+				}
+				res.json(result);
+			} catch (err) {
+				res.json({ success: false, error: (err as Error).message });
+			}
+		});
+
 		// API: Cancel/close
 		app.post('/api/cancel', (_req, res) => {
 			processResult = false;
@@ -140,6 +181,21 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 		app.post('/api/close', (_req, res) => {
 			res.json({ ok: true });
 			shutdown();
+		});
+
+		// API: Save preset
+		app.post('/api/save-preset', (req, res) => {
+			try {
+				const preset = req.body as Preset;
+				if (!preset.id || !preset.name || !preset.icons?.length) {
+					res.json({ success: false, error: 'Invalid preset data' });
+					return;
+				}
+				savePreset(preset);
+				res.json({ success: true });
+			} catch (err) {
+				res.json({ success: false, error: (err as Error).message });
+			}
 		});
 
 		function shutdown() {

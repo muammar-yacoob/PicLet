@@ -18,7 +18,13 @@
   // Fetch JSON helper
   async function fetchJson(url, opts) {
     const res = await fetch(url, opts);
-    return res.json();
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('Invalid JSON response:', text.substring(0, 200));
+      throw new Error('Server returned invalid response');
+    }
   }
 
   // POST JSON helper

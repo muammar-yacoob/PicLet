@@ -1,9 +1,9 @@
 /**
  * Unified PicLet tool - combines all tools with chaining support
  */
-import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import { startGuiServer } from '../lib/gui-server.js';
 import { error } from '../lib/logger.js';
 import {
@@ -44,18 +44,30 @@ interface ProcessResult {
 	logs: Array<{ type: string; message: string }>;
 }
 
+interface Dimension {
+	width: number;
+	height: number;
+	filename?: string;
+}
+
 interface ToolOptions {
 	tools: string[];
 	original?: boolean;
 	removebg?: { fuzz: number; trim: boolean; preserveInner: boolean };
 	scale?: { width: number; height: number; makeSquare: boolean };
-	makeicon?: { trim: boolean; makeSquare: boolean };
-	iconpack?: { web: boolean; android: boolean; ios: boolean };
-	storepack?: { preset: string; scaleMode: string };
+	icons?: {
+		trim: boolean;
+		makeSquare: boolean;
+		ico: boolean;
+		web: boolean;
+		android: boolean;
+		ios: boolean;
+	};
+	storepack?: { dimensions: Dimension[]; scaleMode: string; presetName?: string };
 }
 
 // Tool execution order (for chaining)
-const TOOL_ORDER = ['removebg', 'scale', 'makeicon', 'iconpack', 'storepack'];
+const TOOL_ORDER = ['removebg', 'scale', 'icons', 'storepack'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Preview - Chains enabled tools
@@ -160,21 +172,19 @@ async function generateCombinedPreview(
 					break;
 				}
 
-				case 'makeicon': {
-					// For preview, just show what the icon source would look like
-					const miOpts = opts.makeicon!;
-					let out = current;
+				case 'icons': {
+					// For preview, show what the icon source would look like after trim/squarify
+					const icOpts = opts.icons!;
 
-					if (miOpts.trim && current === input) {
-						const trimOut = makeTempPath('mi-trim');
+					if (icOpts.trim && current === input) {
+						const trimOut = makeTempPath('ic-trim');
 						if (await trim(current, trimOut)) {
-							out = trimOut;
-							current = out;
+							current = trimOut;
 						}
 					}
 
-					if (miOpts.makeSquare) {
-						const sqOut = makeTempPath('mi-sq');
+					if (icOpts.makeSquare) {
+						const sqOut = makeTempPath('ic-sq');
 						if (await squarify(current, sqOut)) {
 							current = sqOut;
 						}
@@ -182,7 +192,7 @@ async function generateCombinedPreview(
 					break;
 				}
 
-				// iconpack and storepack don't affect preview
+				// storepack doesn't affect preview
 			}
 		}
 
@@ -325,171 +335,169 @@ async function processCombined(
 				break;
 			}
 
-			case 'makeicon': {
-				logs.push({ type: 'info', message: 'Creating ICO...' });
-				const miOpts = opts.makeicon!;
+			case 'icons': {
+				logs.push({ type: 'info', message: 'Generating icons...' });
+				const icOpts = opts.icons!;
 
-				// Prepare source
+				// Need at least one output format
+				if (!icOpts.ico && !icOpts.web && !icOpts.android && !icOpts.ios) {
+					logs.push({ type: 'error', message: 'No output format selected' });
+					return [];
+				}
+
+				// Prepare source - apply trim and squarify
 				let iconSource = current;
 
-				if (miOpts.trim && current === input) {
-					const trimOut = makeTempPath('mi-trim');
+				if (icOpts.trim && current === input) {
+					logs.push({ type: 'info', message: 'Trimming edges...' });
+					const trimOut = makeTempPath('ic-trim');
 					if (await trim(current, trimOut)) {
 						iconSource = trimOut;
+						logs.push({ type: 'success', message: 'Trimmed' });
 					}
 				}
 
-				if (miOpts.makeSquare) {
-					const sqOut = makeTempPath('mi-sq');
+				if (icOpts.makeSquare) {
+					logs.push({ type: 'info', message: 'Making square...' });
+					const sqOut = makeTempPath('ic-sq');
 					if (await squarify(iconSource, sqOut)) {
 						if (iconSource !== current && iconSource !== input) cleanup(iconSource);
 						iconSource = sqOut;
+						logs.push({ type: 'success', message: 'Made square' });
 					}
 				}
 
-				// Scale to 512 for best quality
-				const scaled = makeTempPath('mi-512');
-				if (!(await scaleToSize(iconSource, scaled, 512))) {
+				// Prepare high-res source (1024px for packs, 512px for ICO only)
+				const maxSize = icOpts.web || icOpts.android || icOpts.ios ? 1024 : 512;
+				const srcTemp = makeTempPath('ic-src');
+				if (!(await scaleToSize(iconSource, srcTemp, maxSize))) {
 					logs.push({ type: 'error', message: 'Failed to prepare icon source' });
 					cleanup(...temps);
 					return [];
 				}
 				if (iconSource !== current && iconSource !== input) cleanup(iconSource);
 
-				// Create ICO
-				const icoOut = `${fileInfo.dirname}/${fileInfo.filename}.ico`;
-				if (!(await createIco(scaled, icoOut))) {
-					logs.push({ type: 'error', message: 'ICO creation failed' });
-					cleanup(...temps);
-					return [];
-				}
-				cleanup(scaled);
-				temps.splice(temps.indexOf(scaled), 1);
+				let totalCount = 0;
 
-				logs.push({ type: 'success', message: 'Created ICO (256, 128, 64, 48, 32, 16)' });
-				outputs.push(basename(icoOut));
-				break;
-			}
-
-			case 'iconpack': {
-				logs.push({ type: 'info', message: 'Generating icon pack...' });
-				const ipOpts = opts.iconpack!;
-				const outputDir = `${fileInfo.dirname}/${fileInfo.filename}_icons`;
-				mkdirSync(outputDir, { recursive: true });
-
-				// Prepare 1024px source
-				const sqTemp = makeTempPath('ip-sq');
-				const srcTemp = makeTempPath('ip-src');
-
-				if (!(await squarify(current, sqTemp))) {
-					logs.push({ type: 'error', message: 'Failed to prepare source' });
-					cleanup(...temps);
-					return [];
-				}
-				if (!(await scaleToSize(sqTemp, srcTemp, 1024))) {
-					cleanup(...temps);
-					return [];
-				}
-				cleanup(sqTemp);
-
-				let count = 0;
-
-				if (ipOpts.web) {
-					const webDir = `${outputDir}/web`;
-					mkdirSync(webDir, { recursive: true });
-
-					// Favicon
-					const t16 = `${webDir}/.t16.png`, t32 = `${webDir}/.t32.png`, t48 = `${webDir}/.t48.png`;
-					await scaleToSize(srcTemp, t16, 16);
-					await scaleToSize(srcTemp, t32, 32);
-					await scaleToSize(srcTemp, t48, 48);
-					await createIcoFromMultiple([t16, t32, t48], `${webDir}/favicon.ico`);
-					cleanup(t16, t32, t48);
-					count++;
-
-					const webIcons = [
-						{ name: 'favicon-16x16.png', size: 16 }, { name: 'favicon-32x32.png', size: 32 },
-						{ name: 'apple-touch-icon.png', size: 180 }, { name: 'android-chrome-192x192.png', size: 192 },
-						{ name: 'android-chrome-512x512.png', size: 512 }, { name: 'mstile-150x150.png', size: 150 },
-					];
-					for (const i of webIcons) {
-						await scaleToSize(srcTemp, `${webDir}/${i.name}`, i.size);
-						count++;
+				// Generate ICO file
+				if (icOpts.ico) {
+					logs.push({ type: 'info', message: 'Creating ICO file...' });
+					const icoOut = `${fileInfo.dirname}/${fileInfo.filename}.ico`;
+					if (await createIco(srcTemp, icoOut)) {
+						logs.push({ type: 'success', message: 'ICO: 6 sizes (256, 128, 64, 48, 32, 16)' });
+						outputs.push(basename(icoOut));
+						totalCount += 6;
+					} else {
+						logs.push({ type: 'warn', message: 'ICO creation failed' });
 					}
-					logs.push({ type: 'success', message: `Web: ${count} icons` });
 				}
 
-				if (ipOpts.android) {
-					const androidDir = `${outputDir}/android`;
-					const androidIcons = [
-						{ name: 'mipmap-mdpi/ic_launcher.png', size: 48 },
-						{ name: 'mipmap-hdpi/ic_launcher.png', size: 72 },
-						{ name: 'mipmap-xhdpi/ic_launcher.png', size: 96 },
-						{ name: 'mipmap-xxhdpi/ic_launcher.png', size: 144 },
-						{ name: 'mipmap-xxxhdpi/ic_launcher.png', size: 192 },
-						{ name: 'playstore-icon.png', size: 512 },
-					];
-					const startCount = count;
-					for (const i of androidIcons) {
-						const p = `${androidDir}/${i.name}`;
-						mkdirSync(dirname(p), { recursive: true });
-						await scaleToSize(srcTemp, p, i.size);
-						count++;
-					}
-					logs.push({ type: 'success', message: `Android: ${count - startCount} icons` });
-				}
+				// Generate icon packs (Web, Android, iOS)
+				const needsPacks = icOpts.web || icOpts.android || icOpts.ios;
+				if (needsPacks) {
+					const outputDir = `${fileInfo.dirname}/${fileInfo.filename}_icons`;
+					mkdirSync(outputDir, { recursive: true });
 
-				if (ipOpts.ios) {
-					const iosDir = `${outputDir}/ios`;
-					mkdirSync(iosDir, { recursive: true });
-					const iosSizes = [20, 29, 40, 58, 60, 76, 80, 87, 120, 152, 167, 180, 1024];
-					const startCount = count;
-					for (const s of iosSizes) {
-						await scaleToSize(srcTemp, `${iosDir}/AppIcon-${s}.png`, s);
-						count++;
+					if (icOpts.web) {
+						logs.push({ type: 'info', message: 'Generating Web icons...' });
+						const webDir = `${outputDir}/web`;
+						mkdirSync(webDir, { recursive: true });
+
+						// Favicon.ico
+						const t16 = `${webDir}/.t16.png`, t32 = `${webDir}/.t32.png`, t48 = `${webDir}/.t48.png`;
+						await scaleToSize(srcTemp, t16, 16);
+						await scaleToSize(srcTemp, t32, 32);
+						await scaleToSize(srcTemp, t48, 48);
+						await createIcoFromMultiple([t16, t32, t48], `${webDir}/favicon.ico`);
+						cleanup(t16, t32, t48);
+						totalCount++;
+
+						const webIcons = [
+							{ name: 'favicon-16x16.png', size: 16 }, { name: 'favicon-32x32.png', size: 32 },
+							{ name: 'apple-touch-icon.png', size: 180 }, { name: 'android-chrome-192x192.png', size: 192 },
+							{ name: 'android-chrome-512x512.png', size: 512 }, { name: 'mstile-150x150.png', size: 150 },
+						];
+						for (const i of webIcons) {
+							await scaleToSize(srcTemp, `${webDir}/${i.name}`, i.size);
+							totalCount++;
+						}
+						logs.push({ type: 'success', message: 'Web: 7 icons' });
 					}
-					logs.push({ type: 'success', message: `iOS: ${count - startCount} icons` });
+
+					if (icOpts.android) {
+						logs.push({ type: 'info', message: 'Generating Android icons...' });
+						const androidDir = `${outputDir}/android`;
+						const androidIcons = [
+							{ name: 'mipmap-mdpi/ic_launcher.png', size: 48 },
+							{ name: 'mipmap-hdpi/ic_launcher.png', size: 72 },
+							{ name: 'mipmap-xhdpi/ic_launcher.png', size: 96 },
+							{ name: 'mipmap-xxhdpi/ic_launcher.png', size: 144 },
+							{ name: 'mipmap-xxxhdpi/ic_launcher.png', size: 192 },
+							{ name: 'playstore-icon.png', size: 512 },
+						];
+						for (const i of androidIcons) {
+							const p = `${androidDir}/${i.name}`;
+							mkdirSync(dirname(p), { recursive: true });
+							await scaleToSize(srcTemp, p, i.size);
+							totalCount++;
+						}
+						logs.push({ type: 'success', message: 'Android: 6 icons' });
+					}
+
+					if (icOpts.ios) {
+						logs.push({ type: 'info', message: 'Generating iOS icons...' });
+						const iosDir = `${outputDir}/ios`;
+						mkdirSync(iosDir, { recursive: true });
+						const iosSizes = [20, 29, 40, 58, 60, 76, 80, 87, 120, 152, 167, 180, 1024];
+						for (const s of iosSizes) {
+							await scaleToSize(srcTemp, `${iosDir}/AppIcon-${s}.png`, s);
+							totalCount++;
+						}
+						logs.push({ type: 'success', message: `iOS: ${iosSizes.length} icons` });
+					}
+
+					outputs.push(`${totalCount} icons → ${fileInfo.filename}_icons/`);
 				}
 
 				cleanup(srcTemp);
-				outputs.push(`${count} icons → ${fileInfo.filename}_icons/`);
+				logs.push({ type: 'success', message: `Generated ${totalCount} total icons` });
 				break;
 			}
 
 			case 'storepack': {
 				logs.push({ type: 'info', message: 'Generating store assets...' });
 				const spOpts = opts.storepack!;
-				const presets = loadPresets();
-				const preset = presets.find(p => p.id === spOpts.preset);
 
-				if (!preset) {
-					logs.push({ type: 'error', message: 'Preset not found' });
+				if (!spOpts.dimensions || spOpts.dimensions.length === 0) {
+					logs.push({ type: 'error', message: 'No dimensions specified' });
 					return [];
 				}
 
-				const outputDir = `${fileInfo.dirname}/${fileInfo.filename}_${preset.id}`;
+				const folderName = spOpts.presetName || 'assets';
+				const outputDir = `${fileInfo.dirname}/${fileInfo.filename}_${folderName}`;
 				mkdirSync(outputDir, { recursive: true });
 
 				let count = 0;
-				for (const icon of preset.icons) {
-					const out = join(outputDir, icon.filename);
+				for (const dim of spOpts.dimensions) {
+					const filename = dim.filename || `${dim.width}x${dim.height}.png`;
+					const out = join(outputDir, filename);
 					let success = false;
 
 					switch (spOpts.scaleMode) {
 						case 'fill':
-							success = await scaleFillCrop(current, out, icon.width, icon.height);
+							success = await scaleFillCrop(current, out, dim.width, dim.height);
 							break;
 						case 'stretch':
-							success = await resize(current, out, icon.width, icon.height);
+							success = await resize(current, out, dim.width, dim.height);
 							break;
 						default:
-							success = await scaleWithPadding(current, out, icon.width, icon.height);
+							success = await scaleWithPadding(current, out, dim.width, dim.height);
 					}
 					if (success) count++;
 				}
 
-				logs.push({ type: 'success', message: `Generated ${count}/${preset.icons.length} images` });
-				outputs.push(`${count} images → ${fileInfo.filename}_${preset.id}/`);
+				logs.push({ type: 'success', message: `Generated ${count}/${spOpts.dimensions.length} images` });
+				outputs.push(`${count} images → ${fileInfo.filename}_${folderName}/`);
 				break;
 			}
 		}
@@ -505,34 +513,40 @@ async function processCombined(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function runGUI(inputRaw: string): Promise<boolean> {
-	const input = normalizePath(inputRaw);
+	let currentInput = normalizePath(inputRaw);
 
-	if (!existsSync(input)) {
-		error(`File not found: ${input}`);
+	if (!existsSync(currentInput)) {
+		error(`File not found: ${currentInput}`);
 		return false;
 	}
 
-	const dims = await getDimensions(input);
+	const dims = await getDimensions(currentInput);
 	if (!dims) {
 		error('Failed to read image dimensions');
 		return false;
 	}
 
-	const borderColor = await getBorderColor(input);
+	let currentBorderColor = await getBorderColor(currentInput);
 	const presets = loadPresets();
 
 	return startGuiServer({
 		htmlFile: 'piclet.html',
 		title: 'PicLet',
 		imageInfo: {
-			filePath: input,
-			fileName: basename(input),
+			filePath: currentInput,
+			fileName: basename(currentInput),
 			width: dims[0],
 			height: dims[1],
-			borderColor,
+			borderColor: currentBorderColor,
 		},
 		defaults: {
-			presets: presets.map(p => ({ id: p.id, name: p.name })),
+			// Return full preset data for the UI
+			presets: presets.map(p => ({
+				id: p.id,
+				name: p.name,
+				description: p.description,
+				icons: p.icons,
+			})),
 		},
 		onPreview: async (opts) => {
 			const toolOpts = opts as unknown as ToolOptions;
@@ -540,7 +554,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			if (!toolOpts.tools) {
 				toolOpts.tools = [];
 			}
-			return generateCombinedPreview(input, borderColor, toolOpts);
+			return generateCombinedPreview(currentInput, currentBorderColor, toolOpts);
 		},
 		onProcess: async (opts) => {
 			const logs: Array<{ type: string; message: string }> = [];
@@ -558,7 +572,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 				};
 			}
 
-			const outputs = await processCombined(input, borderColor, toolOpts, logs);
+			const outputs = await processCombined(currentInput, currentBorderColor, toolOpts, logs);
 
 			if (outputs.length > 0) {
 				return {
@@ -569,6 +583,39 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			}
 
 			return { success: false, error: 'Processing failed', logs };
+		},
+		onLoadImage: async (data) => {
+			try {
+				// Save base64 data to temp file
+				const ext = extname(data.fileName) || '.png';
+				const tempPath = join(tmpdir(), `piclet-load-${Date.now()}${ext}`);
+				const buffer = Buffer.from(data.data, 'base64');
+				writeFileSync(tempPath, buffer);
+
+				// Get dimensions and border color
+				const newDims = await getDimensions(tempPath);
+				if (!newDims) {
+					cleanup(tempPath);
+					return { success: false, error: 'Failed to read image dimensions' };
+				}
+
+				const newBorderColor = await getBorderColor(tempPath);
+
+				// Update current image
+				currentInput = tempPath;
+				currentBorderColor = newBorderColor;
+
+				return {
+					success: true,
+					filePath: tempPath,
+					fileName: data.fileName,
+					width: newDims[0],
+					height: newDims[1],
+					borderColor: newBorderColor,
+				};
+			} catch (err) {
+				return { success: false, error: (err as Error).message };
+			}
 		},
 	});
 }
