@@ -216,6 +216,22 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 			}
 		});
 
+		// API: Open URL in default browser
+		app.post('/api/open-url', (req, res) => {
+			const { url } = req.body;
+			if (!url || typeof url !== 'string') {
+				res.json({ success: false, error: 'Missing URL' });
+				return;
+			}
+			// Use PowerShell Start-Process which opens in default browser
+			spawn('powershell.exe', ['-WindowStyle', 'Hidden', '-Command', `Start-Process '${url}'`], {
+				detached: true,
+				stdio: 'ignore',
+				windowsHide: true,
+			}).unref();
+			res.json({ success: true });
+		});
+
 		function shutdown() {
 			setTimeout(() => {
 				server?.close();

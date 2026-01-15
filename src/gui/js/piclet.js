@@ -41,6 +41,15 @@
     fetch('/api/close', { method: 'POST' }).finally(() => window.close());
   }
 
+  // Open URL in default browser
+  function openUrl(url) {
+    fetch('/api/open-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+  }
+
   // Initialize window
   function init(opts = {}) {
     const w = opts.width || 320;
@@ -60,7 +69,7 @@
   }
 
   // Export to global
-  window.PicLet = { $, log, fetchJson, postJson, close, init };
+  window.PicLet = { $, log, fetchJson, postJson, close, openUrl, init };
 
   // Auto-init on DOMContentLoaded if data attributes present
   document.addEventListener('DOMContentLoaded', () => {

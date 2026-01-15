@@ -17,7 +17,7 @@ body{font:500 13px/1.3 -apple-system,system-ui,sans-serif;color:var(--txt);paddi
 .hd b{font-size:14px;background:linear-gradient(135deg,#eab308,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hd span{font-size:11px;color:var(--txt3)}
 
-/* Meta info */
+/* Meta info (legacy - kept for other pages) */
 .meta{display:flex;gap:12px;font-size:11px;color:var(--txt3);padding:8px 0;flex-shrink:0}
 .meta b{color:var(--txt2);font-weight:500;margin-left:3px}
 

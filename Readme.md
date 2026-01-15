@@ -170,8 +170,9 @@ When you run `piclet iconpack`, it generates:
 ## Support & Contributions
 
 ⭐ Star the repo and I power up like Mario!<br>
-☕ Devs run on [coffee][coffee-link].<br>
 🤝 [Contributions][fork-link] are welcome.
+
+<a href="https://buymeacoffee.com/spark88" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="180"></a>
 
 ---
 
