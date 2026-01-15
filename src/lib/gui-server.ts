@@ -198,6 +198,21 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 			}
 		});
 
+		// API: Delete preset
+		app.post('/api/delete-preset', (req, res) => {
+			try {
+				const { id } = req.body;
+				if (!id) {
+					res.json({ success: false, error: 'Missing preset ID' });
+					return;
+				}
+				const result = deletePreset(id);
+				res.json(result);
+			} catch (err) {
+				res.json({ success: false, error: (err as Error).message });
+			}
+		});
+
 		function shutdown() {
 			setTimeout(() => {
 				server?.close();

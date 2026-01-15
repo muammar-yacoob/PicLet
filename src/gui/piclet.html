@@ -593,6 +593,8 @@ function onPresetChange() {
     currentDimensions = [];
     $('sp-name').value = sel.value ? (preset?.name || '') : '';
   }
+  // Hide delete button for unsaved custom presets
+  document.querySelector('.btn-del').style.display = sel.value ? '' : 'none';
   renderDimensions();
 }
 
@@ -675,6 +677,8 @@ async function saveCurrentPreset() {
         $('sp-preset').appendChild(opt);
       }
       $('sp-preset').value = id;
+      // Show delete button now that preset is saved
+      document.querySelector('.btn-del').style.display = '';
 
       // Show success feedback
       btn.textContent = 'Saved!';
@@ -811,6 +815,8 @@ fetchJson('/api/info').then(d => {
       sel.appendChild(opt);
     });
   }
+  // Hide delete button initially (Custom... selected)
+  document.querySelector('.btn-del').style.display = 'none';
 
   // Show original image immediately
   showOriginal();

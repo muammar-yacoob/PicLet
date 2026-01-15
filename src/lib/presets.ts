@@ -242,3 +242,33 @@ export function savePreset(preset: Preset): void {
 export function getBuiltInPresetIds(): string[] {
 	return BUILT_IN_PRESETS.map((p) => p.id);
 }
+
+/** Delete a user-defined preset by ID */
+export function deletePreset(id: string): { success: boolean; error?: string } {
+	// Cannot delete built-in presets
+	if (BUILT_IN_PRESETS.some((p) => p.id === id)) {
+		return { success: false, error: 'Cannot delete built-in presets' };
+	}
+
+	const presetsPath = getPresetsPath();
+	if (!existsSync(presetsPath)) {
+		return { success: false, error: 'Preset not found' };
+	}
+
+	try {
+		const data = readFileSync(presetsPath, 'utf-8');
+		const config: PresetsConfig = JSON.parse(data);
+		const userPresets = config.presets || [];
+
+		const idx = userPresets.findIndex((p) => p.id === id);
+		if (idx < 0) {
+			return { success: false, error: 'Preset not found' };
+		}
+
+		userPresets.splice(idx, 1);
+		savePresets(userPresets);
+		return { success: true };
+	} catch {
+		return { success: false, error: 'Failed to delete preset' };
+	}
+}

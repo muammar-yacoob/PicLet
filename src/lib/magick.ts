@@ -182,7 +182,7 @@ export async function scaleFillCrop(
 ): Promise<boolean> {
 	try {
 		await execAsync(
-			`convert "${inputPath}" -resize ${width}x${height}^ -gravity center -extent ${width}x${height} "${outputPath}"`,
+			`convert "${inputPath}" -resize ${width}x${height}^ -background none -gravity center -extent ${width}x${height} "${outputPath}"`,
 		);
 		return true;
 	} catch {
