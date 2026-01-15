@@ -14,8 +14,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Signal the loading HTA to close by creating a temp file
  */
 function signalReady(): void {
-	// Write ready signal to Windows temp directory
-	spawn('cmd.exe', ['/c', 'echo.>', '%TEMP%\\piclet-ready.tmp'], {
+	// Write ready signal to Windows temp directory using PowerShell (no window flash)
+	spawn('powershell.exe', ['-WindowStyle', 'Hidden', '-Command', 'New-Item -Path $env:TEMP\\piclet-ready.tmp -ItemType File -Force | Out-Null'], {
 		stdio: 'ignore',
 		windowsHide: true,
 	});
@@ -25,9 +25,12 @@ function signalReady(): void {
  * Open URL in Edge app mode (standalone window without browser UI)
  */
 function openAppWindow(url: string): void {
-	// Use cmd.exe with start command - windowsHide hides the cmd window
-	// The start command launches Edge which creates its own visible window
-	spawn('cmd.exe', ['/c', 'start', '""', 'msedge', `--app=${url}`], {
+	// Use PowerShell with hidden window to launch Edge - prevents terminal flash
+	spawn('powershell.exe', [
+		'-WindowStyle', 'Hidden',
+		'-Command',
+		`Start-Process msedge -ArgumentList '--app=${url}'`
+	], {
 		detached: true,
 		stdio: 'ignore',
 		windowsHide: true,
