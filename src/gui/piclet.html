@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html data-piclet data-width="620" data-height="560">
+<html data-piclet data-width="540" data-height="960">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -11,19 +11,30 @@
     .main{display:flex;flex:1;gap:12px;overflow:hidden}
 
     /* Left panel - Preview */
-    .preview-panel{width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
-    .preview-area{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:6px;overflow:hidden;position:relative;min-height:180px;transition:border-color .2s}
+    .preview-panel{flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px}
+    .preview-area{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:6px;overflow:auto;position:relative;min-height:180px;transition:border-color .2s}
     .preview-area::before{content:'';position:absolute;inset:0;background:repeating-conic-gradient(#1a1a1d 0% 25%, #222 0% 50%) 50%/16px 16px;z-index:0}
     .preview-area.dragover{border:2px dashed var(--acc);background:rgba(255,204,0,0.05)}
-    .preview-area img{max-width:100%;max-height:100%;object-fit:contain;position:relative;z-index:1}
+    .preview-area img{max-width:100%;max-height:100%;object-fit:contain;position:relative;z-index:1;transform-origin:center;cursor:grab}
+    .preview-area img.panning{cursor:grabbing}
     .preview-area .placeholder{position:relative;z-index:1;font-size:11px;color:var(--txt3);text-align:center;padding:12px}
     .preview-area .mini-sp{width:20px;height:20px;border:2px solid var(--bg3);border-top-color:var(--acc);border-radius:50%;animation:s .5s linear infinite;position:relative;z-index:1}
     .preview-info{font-size:10px;color:var(--txt3);text-align:center}
+    .preview-zoom{display:flex;align-items:center;justify-content:center;gap:4px}
+    .preview-zoom button{width:22px;height:22px;padding:0;font-size:14px;background:var(--bg2);border:1px solid var(--brd);border-radius:4px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .preview-zoom button:hover{border-color:var(--acc);color:var(--acc)}
+    .preview-zoom span{font-size:10px;color:var(--txt3);min-width:40px;text-align:center}
     .load-btn{width:100%;padding:8px;font-size:11px;background:var(--bg2);border:1px dashed var(--brd);border-radius:6px;color:var(--txt3);cursor:pointer;transition:all .2s}
     .load-btn:hover{border-color:var(--acc);color:var(--acc)}
 
+    /* Resizable divider */
+    .divider{width:6px;cursor:col-resize;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin:0 -2px}
+    .divider:hover,.divider.dragging{background:var(--bg3)}
+    .divider::after{content:'';width:2px;height:40px;background:var(--brd);border-radius:1px;transition:background .2s}
+    .divider:hover::after,.divider.dragging::after{background:var(--acc)}
+
     /* Right panel - Tools */
-    .tools-panel{flex:1;display:flex;flex-direction:column;gap:6px;overflow-y:auto;padding-right:4px}
+    .tools-panel{width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto;padding-right:4px;align-self:flex-start;max-height:100%}
 
     /* Tool sections */
     .tool{background:var(--bg2);border-radius:6px;border:1px solid var(--brd);overflow:hidden}
@@ -42,6 +53,10 @@
     .tool.active .tool-header .toggle svg{opacity:1;stroke:#000}
     .tool-body{display:none;padding:6px 10px 10px;border-top:1px solid var(--brd)}
     .tool.active .tool-body{display:block}
+    #t-removebg .tool-body{min-height:70px}
+    #t-scale .tool-body{min-height:95px}
+    #t-icons .tool-body{min-height:85px}
+    #t-storepack .tool-body{min-height:170px}
 
     /* Tool options */
     .tool-opts{display:flex;flex-direction:column;gap:6px}
@@ -123,9 +138,18 @@
         <span class="placeholder">Enable tools to preview</span>
       </div>
       <div class="preview-info" id="pI"></div>
+      <div class="preview-zoom">
+        <button onclick="zoomOut()" title="Zoom out">−</button>
+        <span id="zoomLevel">100%</span>
+        <button onclick="zoomIn()" title="Zoom in">+</button>
+        <button onclick="zoomReset()" title="Reset zoom" style="font-size:10px;width:28px">Fit</button>
+      </div>
       <button class="load-btn" onclick="loadNewImage()">Load Different Image...</button>
       <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.gif,.bmp,.ico" style="display:none" onchange="handleFileSelect(event)">
     </div>
+
+    <!-- Resizable divider -->
+    <div class="divider" id="divider"></div>
 
     <!-- Tools panel -->
     <div class="tools-panel">
@@ -304,6 +328,84 @@ function confirmModal() {
 }
 const pA = $('pA'), pI = $('pI');
 
+// Zoom and pan state
+let zoomScale = 1;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 4;
+const ZOOM_STEP = 0.25;
+
+function updateZoom() {
+  const img = pA.querySelector('img');
+  if (img) {
+    img.style.transform = `scale(${zoomScale})`;
+    // Remove max constraints when zoomed in
+    if (zoomScale > 1) {
+      img.style.maxWidth = 'none';
+      img.style.maxHeight = 'none';
+    } else {
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '100%';
+    }
+  }
+  $('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
+}
+
+function zoomIn() {
+  zoomScale = Math.min(ZOOM_MAX, zoomScale + ZOOM_STEP);
+  updateZoom();
+}
+
+function zoomOut() {
+  zoomScale = Math.max(ZOOM_MIN, zoomScale - ZOOM_STEP);
+  updateZoom();
+}
+
+function zoomReset() {
+  zoomScale = 1;
+  pA.scrollLeft = 0;
+  pA.scrollTop = 0;
+  updateZoom();
+}
+
+// Mouse wheel zoom (no modifier key needed)
+pA.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (e.deltaY < 0) zoomIn();
+  else zoomOut();
+}, { passive: false });
+
+// Mouse drag panning
+let isPanning = false;
+let panStart = { x: 0, y: 0 };
+let scrollStart = { x: 0, y: 0 };
+
+pA.addEventListener('mousedown', (e) => {
+  // Only pan on left click and if there's an image
+  if (e.button !== 0 || !pA.querySelector('img')) return;
+  isPanning = true;
+  panStart = { x: e.clientX, y: e.clientY };
+  scrollStart = { x: pA.scrollLeft, y: pA.scrollTop };
+  const img = pA.querySelector('img');
+  if (img) img.classList.add('panning');
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isPanning) return;
+  const dx = e.clientX - panStart.x;
+  const dy = e.clientY - panStart.y;
+  pA.scrollLeft = scrollStart.x - dx;
+  pA.scrollTop = scrollStart.y - dy;
+});
+
+document.addEventListener('mouseup', () => {
+  if (isPanning) {
+    isPanning = false;
+    const img = pA.querySelector('img');
+    if (img) img.classList.remove('panning');
+  }
+});
+
 let imageInfo = {};
 let previewTimeout = null;
 let activeTools = new Set();
@@ -443,6 +545,7 @@ async function showOriginal() {
       pA.innerHTML = '';
       pA.appendChild(img);
       pI.textContent = `${imageInfo.width} × ${imageInfo.height}`;
+      updateZoom(); // Apply current zoom
     }
   } catch (e) {
     pA.innerHTML = '<span class="placeholder">Failed to load image</span>';
@@ -481,6 +584,7 @@ async function generatePreview() {
         pI.textContent = `${result.width} × ${result.height}`;
         $('outSize').textContent = `${result.width}×${result.height}`;
       }
+      updateZoom(); // Apply current zoom
     } else {
       pA.innerHTML = '<span class="placeholder">' + (result.error || 'Preview failed') + '</span>';
     }
@@ -515,6 +619,7 @@ async function loadImageFile(file) {
       if (result.success) {
         imageInfo = result;
         updateImageInfo();
+        zoomReset(); // Reset zoom for new image
         showOriginal();
       } else {
         showAlert('Failed to load image: ' + (result.error || 'Unknown error'));
@@ -526,25 +631,33 @@ async function loadImageFile(file) {
   reader.readAsDataURL(file);
 }
 
-// Drag and drop handlers
+// Drag and drop handlers (only for external file drops)
 function setupDragDrop() {
   const area = pA;
 
+  area.addEventListener('dragenter', (e) => {
+    // Only respond to file drags from outside
+    if (e.dataTransfer?.types?.includes('Files')) {
+      e.preventDefault();
+      area.classList.add('dragover');
+    }
+  });
+
   area.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    area.classList.add('dragover');
+    if (e.dataTransfer?.types?.includes('Files')) {
+      e.preventDefault();
+    }
   });
 
   area.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    area.classList.remove('dragover');
+    // Only remove if actually leaving the area
+    if (!area.contains(e.relatedTarget)) {
+      area.classList.remove('dragover');
+    }
   });
 
   area.addEventListener('drop', (e) => {
     e.preventDefault();
-    e.stopPropagation();
     area.classList.remove('dragover');
 
     const files = e.dataTransfer?.files;
@@ -796,6 +909,43 @@ function reset() {
 
 // Init
 setupDragDrop();
+setupDivider();
+
+// Resizable divider
+function setupDivider() {
+  const divider = $('divider');
+  const toolsPanel = document.querySelector('.tools-panel');
+  const main = $('M');
+  let isDragging = false;
+
+  divider.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    divider.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const mainRect = main.getBoundingClientRect();
+    // Tools width = distance from cursor to right edge
+    const toolsWidth = mainRect.right - e.clientX;
+    // Clamp: min 240px for tools, leave at least 150px for preview
+    const maxTools = mainRect.width - 150;
+    const clampedWidth = Math.max(240, Math.min(maxTools, toolsWidth));
+    toolsPanel.style.width = clampedWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      divider.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+}
 
 fetchJson('/api/info').then(d => {
   imageInfo = d;
