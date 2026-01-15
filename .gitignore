@@ -1,2 +1,15 @@
-/demo
+# Build output
+dist/
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Editor
 *.*~
+
+# Legacy
+/libs
+/demo

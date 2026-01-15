@@ -1,0 +1,119 @@
+# PicLet NPM Package Conversion PRD
+
+## Overview
+Convert PicLet from a Windows installer-based tool to an npm package (`@spark-apps/piclet`) that can be installed via npm in WSL while still integrating with the Windows context menu.
+
+## Goals
+1. Install via `npm install -g @spark-apps/piclet` from WSL
+2. Automatically register Windows context menu entries on install
+3. Automatically clean up registry on uninstall
+4. Eliminate all batch (.bat) wrapper files
+5. Provide CLI interface for direct command-line usage
+6. Use Biome for linting and code quality
+7. Maintain all existing image processing functionality
+
+## Architecture
+
+### Package Structure
+```
+@spark-apps/piclet/
+├── package.json           # npm config with bin, postinstall, preuninstall
+├── biome.json             # Biome linter configuration
+├── bin/
+│   └── piclet.js          # Node.js CLI entry point
+├── lib/
+│   ├── install.js         # postinstall: register Windows context menu
+│   ├── uninstall.js       # preuninstall: remove registry entries
+│   ├── registry.js        # Windows registry helper functions
+│   ├── common.sh          # Shared bash utilities (existing)
+│   ├── makeicon.sh        # PNG to ICO converter (existing)
+│   ├── remove-bg.sh       # Background removal (existing)
+│   ├── rescale.sh         # Image scaling (existing)
+│   └── iconpack.sh        # Icon pack generator (existing)
+└── icons/
+    ├── makeicon.ico
+    ├── removebg.ico
+    ├── rescale.ico
+    └── iconpack.ico
+```
+
+### Registry Integration (No Batch Files)
+Registry commands will directly invoke WSL:
+- Command format: `wsl bash "<script_path>" "%1"`
+- Scripts handle Windows-to-WSL path conversion internally
+- Use `reg.exe` from WSL for registry operations (no admin elevation needed for HKCU)
+
+### CLI Interface
+```bash
+piclet makeicon <image>      # Convert to ICO
+piclet remove-bg <image>     # Remove background
+piclet scale <image> [size]  # Scale image
+piclet iconpack <image>      # Generate icon pack
+piclet install               # Manual registry install
+piclet uninstall             # Manual registry uninstall
+```
+
+## Technical Requirements
+
+### 1. Package Configuration (package.json)
+- name: @spark-apps/piclet
+- bin: piclet -> bin/piclet.js
+- scripts: postinstall -> lib/install.js, preuninstall -> lib/uninstall.js
+- type: module (ES modules)
+- engines: node >= 18
+
+### 2. Registry Helper (lib/registry.js)
+- Function to detect if running in WSL
+- Function to get Windows path from WSL path
+- Function to add registry keys via reg.exe
+- Function to delete registry keys via reg.exe
+- Support for HKEY_CURRENT_USER (no admin needed) or HKEY_CLASSES_ROOT (admin needed)
+
+### 3. Install Script (lib/install.js)
+- Calculate absolute WSL path to installed scripts
+- Generate registry entries for each file type (.png, .jpg, .jpeg, .gif, .bmp)
+- Register context menu items pointing to `wsl bash "<path>"` commands
+- Copy .ico files to accessible Windows location or reference from WSL path
+- Handle errors gracefully with clear messages
+
+### 4. Uninstall Script (lib/uninstall.js)
+- Remove all registry keys created during install
+- Clean up any copied icon files
+- Handle partial installations gracefully
+
+### 5. CLI Entry Point (bin/piclet.js)
+- Parse command-line arguments
+- Dispatch to appropriate shell script
+- Handle path conversion for Windows paths passed from command line
+- Provide help and usage information
+
+### 6. Biome Configuration (biome.json)
+- Enable linting for JavaScript files
+- Configure formatting rules
+- Set up recommended rules
+
+## File Type Support (Unchanged)
+| Format | MakeIcon | RemoveBG | Scale | IconPack |
+|--------|----------|----------|-------|----------|
+| PNG    | ✓        | ✓        | ✓     | ✓        |
+| JPG    | -        | -        | ✓     | ✓        |
+| JPEG   | -        | -        | ✓     | ✓        |
+| GIF    | -        | -        | ✓     | -        |
+| BMP    | -        | -        | ✓     | -        |
+
+## Dependencies
+- Node.js >= 18 (for ES modules and modern features)
+- WSL with ImageMagick installed
+- No runtime npm dependencies (pure Node.js + shell scripts)
+
+## Dev Dependencies
+- @biomejs/biome - Linting and formatting
+
+## Success Criteria
+1. `npm install -g @spark-apps/piclet` works from WSL
+2. Windows context menu shows PicLet options after install
+3. Right-clicking images and selecting options works correctly
+4. `piclet <command> <file>` works from command line
+5. `npm uninstall -g @spark-apps/piclet` removes context menu entries
+6. All code passes Biome linting with no errors
+7. Existing image processing functionality unchanged

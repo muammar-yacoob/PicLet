@@ -1,0 +1,137 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "Initialize package.json and Biome configuration",
+        "description": "Set up core npm package configuration with exact specifications from PRD including bin, scripts, engines, and type module",
+        "details": "Create package.json with: name '@spark-apps/piclet', version '1.0.0', type: 'module', engines: {node: '>=18'}, bin: {'piclet': './bin/piclet.js'}, scripts: {postinstall: 'node lib/install.js', preuninstall: 'node lib/uninstall.js'}, devDependencies: {'@biomejs/biome': '^latest'}. Create biome.json with recommended rules: { '$schema': 'https://biomejs.dev/schemas/1.8.3/schema.json', 'linter': { 'enabled': true, 'rules': { 'recommended': true } }, 'formatter': { 'enabled': true }, 'organizeImports': { 'enabled': true } }. Run 'npx @biomejs/biome init'.",
+        "testStrategy": "Validate package.json fields match PRD exactly, run 'npm run biome check .' to ensure no linting errors, verify ES module syntax with 'node --check bin/piclet.js'",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-14T10:43:11.857Z"
+      },
+      {
+        "id": "2",
+        "title": "Implement Windows registry helper functions",
+        "description": "Create lib/registry.js with WSL detection, path conversion, and reg.exe operations for HKCU/HKCR",
+        "details": "Use Node.js 'child_process' exec for reg.exe. Implement: isWSL() using process.env, wslToWindowsPath(path) using /mnt/ conversion, addRegistryKey(key, value, type='REG_SZ'), deleteRegistryKey(key), getScriptPath() using import.meta.dirname. Support file types: ['.png','.jpg','.jpeg','.gif','.bmp']. Registry paths: 'HKCU\\Software\\Classes\\*\\shell\\PicLet MakeIcon\\command' etc. Use reg.exe add/delete with /f flag for force.",
+        "testStrategy": "Unit test isWSL(), path conversion with known WSL/Windows paths, mock exec for registry operations, verify registry paths generated correctly for all file types",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-14T10:43:43.798Z"
+      },
+      {
+        "id": "3",
+        "title": "Develop automatic install script",
+        "description": "Create lib/install.js for postinstall hook that registers context menu entries for all supported file types",
+        "details": "Import registry.js functions. Calculate absolute paths: import.meta.dirname + '/../lib/<script>.sh'. For each command (makeicon, remove-bg, scale, iconpack) and each file type per support matrix, call addRegistryKey with command: `wsl bash \"${scriptPath}\" \"%1\"`. Copy icons/*.ico to Windows temp dir if needed. Handle HKCU first, fallback to HKCR. Log success/error messages. Export default async function.",
+        "testStrategy": "Mock registry operations, test path resolution in WSL, verify correct commands generated per file type support matrix, test error handling with invalid paths",
+        "priority": "high",
+        "dependencies": [
+          "1",
+          "2"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-14T10:44:17.730Z"
+      },
+      {
+        "id": "4",
+        "title": "Develop automatic uninstall script",
+        "description": "Create lib/uninstall.js for preuninstall hook that removes all PicLet registry entries",
+        "details": "Import registry.js. Generate same registry paths as install.js. Call deleteRegistryKey for each command/filetype combination. Handle partial failures gracefully. Clean up any copied .ico files. Log removal status. Export default async function.",
+        "testStrategy": "Mock registry operations, verify all expected keys targeted for deletion match install.js paths, test partial failure recovery, validate cleanup of copied icons",
+        "priority": "high",
+        "dependencies": [
+          "1",
+          "2",
+          "3"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-14T10:44:17.752Z"
+      },
+      {
+        "id": "5",
+        "title": "Build CLI entry point with argument parsing",
+        "description": "Create bin/piclet.js as ES module CLI that parses commands and dispatches to shell scripts",
+        "details": "Use process.argv parsing or commander.js (peer dep). Support commands: makeicon/remove-bg/scale/iconpack/install/uninstall. Convert Windows paths to WSL using registry.wslToWindowsPath inverse. Execute: `execa('bash', [scriptPath, convertedPath], {stdio: 'inherit'})`. Add help: piclet --help. Shebang #!/usr/bin/env node. Handle unknown commands.",
+        "testStrategy": "Test CLI parsing with all commands, verify path conversion roundtrip, test direct execution piclet makeicon test.png, validate help output",
+        "priority": "high",
+        "dependencies": [
+          "1",
+          "2"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-14T10:45:03.821Z"
+      },
+      {
+        "id": "6",
+        "title": "Integrate existing shell scripts and icons",
+        "description": "Add lib/common.sh, makeicon.sh, remove-bg.sh, rescale.sh, iconpack.sh and icons/*.ico per exact PRD structure",
+        "details": "Copy existing shell scripts ensuring they handle Windows-to-WSL path conversion internally (wslpath -w/-u). Verify scripts use ImageMagick commands per original functionality. Place icons/makeicon.ico etc. Ensure scripts are executable (chmod +x). Scripts must support exact file type matrix: PNG all, JPG/JPEG scale+iconpack, GIF/BMP scale only.",
+        "testStrategy": "Test each script individually with sample images per supported format, verify output matches original PicLet functionality, check path conversion works bidirectionally",
+        "priority": "medium",
+        "dependencies": [
+          "1"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-14T10:45:03.843Z"
+      },
+      {
+        "id": "7",
+        "title": "Add manual CLI install/uninstall commands",
+        "description": "Extend bin/piclet.js to support 'piclet install' and 'piclet uninstall' for manual registry operations",
+        "details": "Import ./lib/install.js and ./lib/uninstall.js. Add subcommands: if argv[2]==='install' exec install.js, if 'uninstall' exec uninstall.js. Provide clear success/error feedback. Allow manual registry management outside npm lifecycle.",
+        "testStrategy": "Test 'piclet install' creates same registry entries as postinstall, 'piclet uninstall' matches preuninstall, verify idempotent execution",
+        "priority": "medium",
+        "dependencies": [
+          "3",
+          "4",
+          "5"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-14T10:45:03.866Z"
+      },
+      {
+        "id": "8",
+        "title": "Final validation, linting, and packaging",
+        "description": "Run full Biome linting, test complete install/uninstall cycle, package for npm publish",
+        "details": "Add npm scripts: 'lint': 'biome check .', 'format': 'biome format --write .', 'test': 'npm run lint'. Test full cycle: npm install -g, verify context menu appears, test right-click functionality, npm uninstall -g, verify cleanup. Ensure zero runtime deps, only dev dep @biomejs/biome. Update README with CLI usage and install instructions.",
+        "testStrategy": "End-to-end test: npm install/CLI usage/context menu/Windows integration/npm uninstall. Biome linting passes 100%. Manual verification of all success criteria.",
+        "priority": "medium",
+        "dependencies": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-14T10:50:30.445Z"
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2026-01-14T10:50:30.448Z",
+      "taskCount": 8,
+      "completedCount": 8,
+      "tags": [
+        "master"
+      ]
+    }
+  }
+}

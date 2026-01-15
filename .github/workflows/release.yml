@@ -22,29 +22,35 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 'lts/*'
-          
+
       - name: Install dependencies
         run: npm install -g semantic-release @semantic-release/github @semantic-release/changelog
-        
-      # - name: Download ImageMagick
-      #   run: |
-      #     mkdir -p libs
-      #     url="https://imagemagick.org/archive/binaries/ImageMagick-6.9.13-25-portable-Q16-HDRI-x64.zip"
-      #     wget -O imagemagick.zip "$url"
-      #     unzip imagemagick.zip -d temp
-      #     cp temp/convert.exe libs/
-      #     rm imagemagick.zip
-      #     rm -rf temp
-      
+
       - name: Create Package
         run: |
-          mkdir -p release/src/icons release/libs
+          mkdir -p release/src/icons
+
+          # Copy installers
           cp install_piclet.bat release/
           cp uninstall_piclet.bat release/
-          cp -r src/* release/src/
-          cp -r libs/* release/libs/
+
+          # Copy batch wrappers
+          cp src/*.bat release/src/
+
+          # Copy shell scripts
+          cp src/*.sh release/src/
+
+          # Copy registry file
+          cp src/piclet.reg release/src/
+
+          # Copy icons
+          cp src/icons/*.ico release/src/icons/
+
+          # Copy docs
           cp Readme.md release/
-          zip -r PicLet.zip release/*
+
+          # Create zip
+          cd release && zip -r ../PicLet.zip . && cd ..
 
       - name: Semantic Release
         env:

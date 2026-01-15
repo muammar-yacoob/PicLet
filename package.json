@@ -1,0 +1,65 @@
+{
+	"name": "@spark-apps/piclet",
+	"version": "1.0.0",
+	"description": "Image manipulation utility toolkit with Windows shell integration",
+	"type": "module",
+	"bin": {
+		"piclet": "./dist/cli.js"
+	},
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"postinstall": "node dist/cli.js install",
+		"preuninstall": "node dist/cli.js uninstall",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write .",
+		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "bun run build"
+	},
+	"keywords": [
+		"image",
+		"icon",
+		"ico",
+		"imagemagick",
+		"wsl",
+		"windows",
+		"context-menu",
+		"png",
+		"resize",
+		"scale"
+	],
+	"author": "spark-apps",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/spark-apps/piclet.git"
+	},
+	"engines": {
+		"node": ">=18"
+	},
+	"os": [
+		"linux"
+	],
+	"files": [
+		"dist"
+	],
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@types/express": "^5.0.6",
+		"@types/figlet": "^1.7.0",
+		"@types/gradient-string": "^1.1.6",
+		"@types/node": "^22.0.0",
+		"@types/prompts": "^2.4.9",
+		"tsup": "^8.5.0",
+		"typescript": "^5.7.0"
+	},
+	"dependencies": {
+		"chalk": "^5.6.2",
+		"commander": "^14.0.2",
+		"express": "^5.2.1",
+		"figlet": "^1.8.0",
+		"gradient-string": "^3.0.0",
+		"prompts": "^2.4.2"
+	}
+}

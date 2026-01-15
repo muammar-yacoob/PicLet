@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html data-piclet data-width="540" data-height="960">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PicLet</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="/js/piclet.js"></script>
+  <style>
+    .app{display:flex;flex-direction:column;height:100%}
+    .main{display:flex;flex:1;gap:12px;overflow:hidden}
+
+    /* Left panel - Preview */
+    .preview-panel{flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px}
+    .preview-area{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:6px;overflow:auto;position:relative;min-height:180px;transition:border-color .2s}
+    .preview-area::before{content:'';position:absolute;inset:0;background:repeating-conic-gradient(#1a1a1d 0% 25%, #222 0% 50%) 50%/16px 16px;z-index:0}
+    .preview-area.dragover{border:2px dashed var(--acc);background:rgba(255,204,0,0.05)}
+    .preview-area img{max-width:100%;max-height:100%;object-fit:contain;position:relative;z-index:1;transform-origin:center;cursor:grab}
+    .preview-area img.panning{cursor:grabbing}
+    .preview-area .placeholder{position:relative;z-index:1;font-size:11px;color:var(--txt3);text-align:center;padding:12px}
+    .preview-area .mini-sp{width:20px;height:20px;border:2px solid var(--bg3);border-top-color:var(--acc);border-radius:50%;animation:s .5s linear infinite;position:relative;z-index:1}
+    .preview-info{font-size:10px;color:var(--txt3);text-align:center}
+    .preview-zoom{display:flex;align-items:center;justify-content:center;gap:4px}
+    .preview-zoom button{width:22px;height:22px;padding:0;font-size:14px;background:var(--bg2);border:1px solid var(--brd);border-radius:4px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .preview-zoom button:hover{border-color:var(--acc);color:var(--acc)}
+    .preview-zoom span{font-size:10px;color:var(--txt3);min-width:40px;text-align:center}
+    .load-btn{width:100%;padding:8px;font-size:11px;background:var(--bg2);border:1px dashed var(--brd);border-radius:6px;color:var(--txt3);cursor:pointer;transition:all .2s}
+    .load-btn:hover{border-color:var(--acc);color:var(--acc)}
+
+    /* Resizable divider */
+    .divider{width:6px;cursor:col-resize;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin:0 -2px}
+    .divider:hover,.divider.dragging{background:var(--bg3)}
+    .divider::after{content:'';width:2px;height:40px;background:var(--brd);border-radius:1px;transition:background .2s}
+    .divider:hover::after,.divider.dragging::after{background:var(--acc)}
+
+    /* Right panel - Tools */
+    .tools-panel{width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;overflow-y:auto;padding-right:4px;align-self:flex-start;max-height:100%}
+
+    /* Tool sections */
+    .tool{background:var(--bg2);border-radius:6px;border:1px solid var(--brd);overflow:hidden}
+    .tool.disabled{opacity:0.35;pointer-events:none}
+    .tool.active{border-color:var(--acc)}
+    .tool-header{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;user-select:none}
+    .tool-header:hover{background:rgba(255,255,255,0.02)}
+    .tool-header img{width:18px;height:18px;opacity:0.7}
+    .tool.active .tool-header img{opacity:1}
+    .tool-header .name{flex:1;font-size:12px;color:var(--txt2)}
+    .tool.active .tool-header .name{color:var(--txt);font-weight:500}
+    .tool-header input[type="checkbox"]{display:none}
+    .tool-header .toggle{width:16px;height:16px;border:1.5px solid var(--brd);border-radius:4px;display:flex;align-items:center;justify-content:center}
+    .tool-header .toggle svg{width:10px;height:10px;fill:none;stroke:var(--acc);stroke-width:2.5;opacity:0}
+    .tool.active .tool-header .toggle{border-color:var(--acc);background:var(--acc)}
+    .tool.active .tool-header .toggle svg{opacity:1;stroke:#000}
+    .tool-body{display:none;padding:6px 10px 10px;border-top:1px solid var(--brd)}
+    .tool.active .tool-body{display:block}
+    #t-removebg .tool-body{min-height:70px}
+    #t-scale .tool-body{min-height:95px}
+    #t-icons .tool-body{min-height:85px}
+    #t-storepack .tool-body{min-height:170px}
+
+    /* Tool options */
+    .tool-opts{display:flex;flex-direction:column;gap:6px}
+    .tool-row{display:flex;align-items:center;gap:8px}
+    .tool-row label{font-size:10px;color:var(--txt3);width:55px;flex-shrink:0}
+    .tool-row input[type="number"]{width:45px;padding:4px 6px;font-size:11px}
+    .tool-row input[type="range"]{flex:1;height:4px}
+    .tool-row .val{width:45px;font-size:10px;color:var(--acc2);text-align:right}
+    .tool-row select{flex:1;padding:6px 8px;font-size:11px;background:var(--bg3);color:var(--txt);border:1px solid var(--brd);border-radius:4px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M3 4l3 4 3-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;padding-right:24px}
+    .tool-row select:hover{border-color:var(--acc)}
+    .tool-row select:focus{outline:none;border-color:var(--acc)}
+    .tool-row select option{background:var(--bg2);color:var(--txt);padding:8px}
+    .tool-opts .opt{font-size:10px;padding:2px 0}
+    .tool-opts .opt .box{width:12px;height:12px}
+
+    .platforms{display:flex;gap:4px}
+    .platforms .opt{flex:1;padding:6px 8px;background:var(--bg3);border-radius:4px;font-size:10px;white-space:nowrap}
+    .platform-info{display:none}
+
+    /* Dimension list */
+    .dim-list{display:flex;flex-wrap:wrap;gap:4px;max-height:80px;overflow-y:auto;margin-bottom:6px}
+    .dim-item{display:flex;align-items:center;gap:4px;padding:3px 6px;background:var(--bg3);border-radius:4px;font-size:10px;color:var(--txt2)}
+    .dim-item .dim-x{color:var(--txt3);font-size:9px}
+    .dim-item .dim-rm{width:12px;height:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--txt3);border-radius:2px;margin-left:2px}
+    .dim-item .dim-rm:hover{background:rgba(255,100,100,0.2);color:#f66}
+    .dim-add{display:flex;align-items:center;gap:4px;margin-bottom:8px}
+    .dim-add input{width:50px;padding:4px 6px;font-size:10px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--txt);-moz-appearance:textfield}
+    .dim-add input::-webkit-outer-spin-button,.dim-add input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+    .dim-add span{color:var(--txt3);font-size:10px}
+    .dim-add-btn{width:22px;height:22px;padding:0;font-size:14px;background:var(--acc);border:none;border-radius:4px;color:#000;cursor:pointer;font-weight:bold}
+    .dim-add-btn:hover{background:var(--acc2)}
+    .preset-actions{display:flex;gap:4px}
+    .preset-actions input{flex:1;padding:5px 8px;font-size:10px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--txt)}
+    .btn-sm{padding:5px 10px;font-size:10px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--txt);cursor:pointer}
+    .btn-sm:hover{border-color:var(--acc);color:var(--acc)}
+    .btn-sm.btn-del{color:#a66}
+    .btn-sm.btn-del:hover{border-color:#c44;color:#c44}
+
+    /* Bottom bar */
+    .bottom-bar{display:flex;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--brd)}
+    .bottom-bar .btn{flex:1}
+    .apply-btn{background:var(--acc)!important;color:#000!important;font-weight:600}
+    .apply-btn:disabled{opacity:0.5;cursor:not-allowed}
+
+    /* States */
+    .main.hide{display:none}
+    .bottom-bar.hide{display:none}
+
+    /* Themed alert modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+    .modal-overlay.on{opacity:1;pointer-events:auto}
+    .modal{background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:16px 20px;min-width:200px;max-width:300px;text-align:center}
+    .modal-msg{font-size:12px;color:var(--txt);margin-bottom:12px}
+    .modal-btns{display:flex;gap:8px;justify-content:center}
+    .modal-btn{padding:6px 20px;font-size:11px;background:var(--acc);border:none;border-radius:4px;color:#000;cursor:pointer;font-weight:500}
+    .modal-btn:hover{background:var(--acc2)}
+    .modal-btn.danger{background:#c44;color:#fff}
+    .modal-btn.danger:hover{background:#a33}
+    .modal-btn.secondary{background:var(--bg3);color:var(--txt);border:1px solid var(--brd)}
+    .modal-btn.secondary:hover{border-color:var(--acc)}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="hd">
+    <b>PicLet</b>
+    <span id="fileName">-</span>
+  </div>
+  <div class="meta">
+    <div>Original<b id="origSize">-</b></div>
+    <div>Output<b id="outSize">-</b></div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main" id="M">
+    <!-- Preview panel -->
+    <div class="preview-panel">
+      <div class="preview-area" id="pA">
+        <span class="placeholder">Enable tools to preview</span>
+      </div>
+      <div class="preview-info" id="pI"></div>
+      <div class="preview-zoom">
+        <button onclick="zoomOut()" title="Zoom out">−</button>
+        <span id="zoomLevel">100%</span>
+        <button onclick="zoomIn()" title="Zoom in">+</button>
+        <button onclick="zoomReset()" title="Reset zoom" style="font-size:10px;width:28px">Fit</button>
+      </div>
+      <button class="load-btn" onclick="loadNewImage()">Load Different Image...</button>
+      <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.gif,.bmp,.ico" style="display:none" onchange="handleFileSelect(event)">
+    </div>
+
+    <!-- Resizable divider -->
+    <div class="divider" id="divider"></div>
+
+    <!-- Tools panel -->
+    <div class="tools-panel">
+      <!-- Remove Background -->
+      <div class="tool" id="t-removebg" data-tool="removebg" data-ext=".png,.jpg,.jpeg,.ico">
+        <div class="tool-header" onclick="toggleTool('removebg')">
+          <img src="/icons/removebg.ico" alt="">
+          <span class="name">Remove Background</span>
+          <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
+        </div>
+        <div class="tool-body">
+          <div class="tool-opts">
+            <div class="tool-row">
+              <label>Tolerance</label>
+              <input type="range" id="rb-fuzz" min="0" max="100" value="10" oninput="$('rb-fuzzV').textContent=this.value+'%'" onchange="schedulePreview()">
+              <span class="val" id="rb-fuzzV">10%</span>
+            </div>
+            <label class="opt"><input type="checkbox" id="rb-trim" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Auto-trim edges</label>
+            <label class="opt"><input type="checkbox" id="rb-edges" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Border only (preserve inner)</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scale Image -->
+      <div class="tool" id="t-scale" data-tool="scale" data-ext=".png,.jpg,.jpeg,.gif,.bmp,.ico">
+        <div class="tool-header" onclick="toggleTool('scale')">
+          <img src="/icons/rescale.ico" alt="">
+          <span class="name">Scale Image</span>
+          <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
+        </div>
+        <div class="tool-body">
+          <div class="tool-opts">
+            <div class="tool-row">
+              <label>Width</label>
+              <input type="range" id="sc-w" min="16" max="512" value="512" oninput="scaleSlide('w')" onchange="schedulePreview()">
+              <span class="val" id="sc-wV">512px</span>
+            </div>
+            <div class="tool-row" id="sc-hRow">
+              <label>Height</label>
+              <input type="range" id="sc-h" min="16" max="512" value="512" oninput="scaleSlide('h')" onchange="schedulePreview()">
+              <span class="val" id="sc-hV">512px</span>
+            </div>
+            <label class="opt"><input type="checkbox" id="sc-lock" onchange="toggleRatioLock()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Lock aspect ratio</label>
+            <label class="opt"><input type="checkbox" id="sc-sq" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Square output (add padding)</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generate Icons (combined ICO + Icon Pack) -->
+      <div class="tool" id="t-icons" data-tool="icons" data-ext=".png,.jpg,.jpeg,.ico">
+        <div class="tool-header" onclick="toggleTool('icons')">
+          <img src="/icons/iconpack.ico" alt="">
+          <span class="name">Generate Icons</span>
+          <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
+        </div>
+        <div class="tool-body">
+          <div class="tool-opts">
+            <label class="opt"><input type="checkbox" id="ic-trim" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Auto-trim transparent edges</label>
+            <label class="opt"><input type="checkbox" id="ic-sq" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Make square before generating</label>
+          </div>
+          <div style="font-size:9px;color:var(--txt3);margin:6px 0 4px;text-transform:uppercase">Output Formats</div>
+          <div class="platforms">
+            <label class="opt"><input type="checkbox" id="ic-ico" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>ICO</label>
+            <label class="opt"><input type="checkbox" id="ic-web"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Web</label>
+            <label class="opt"><input type="checkbox" id="ic-android"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Android</label>
+            <label class="opt"><input type="checkbox" id="ic-ios"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>iOS</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generate Store Assets -->
+      <div class="tool" id="t-storepack" data-tool="storepack" data-ext=".png,.jpg,.jpeg">
+        <div class="tool-header" onclick="toggleTool('storepack')">
+          <img src="/icons/storepack.ico" alt="">
+          <span class="name">Generate Store Assets</span>
+          <span class="toggle"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
+        </div>
+        <div class="tool-body">
+          <div class="tool-opts">
+            <div class="tool-row">
+              <label>Preset</label>
+              <select id="sp-preset" onchange="onPresetChange()"></select>
+            </div>
+            <div class="tool-row">
+              <label>Scale</label>
+              <select id="sp-mode">
+                <option value="fit">Fit (letterbox)</option>
+                <option value="fill">Fill (crop)</option>
+                <option value="stretch">Stretch</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:9px;color:var(--txt3);margin:8px 0 4px;text-transform:uppercase">Output Sizes</div>
+          <div class="dim-list" id="sp-dims"></div>
+          <div class="dim-add">
+            <input type="number" id="sp-newW" placeholder="W" min="1" max="9999">
+            <span>×</span>
+            <input type="number" id="sp-newH" placeholder="H" min="1" max="9999">
+            <button class="dim-add-btn" onclick="addDimension()">+</button>
+          </div>
+          <div class="preset-actions">
+            <input type="text" id="sp-name" placeholder="Preset name...">
+            <button class="btn-sm" onclick="saveCurrentPreset()">Save</button>
+            <button class="btn-sm btn-del" onclick="deleteCurrentPreset()">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="bottom-bar" id="B">
+    <button class="btn btn-g" onclick="PicLet.close()">Close</button>
+    <button class="btn apply-btn" id="applyBtn" onclick="apply()" disabled>Apply</button>
+  </div>
+
+  <!-- Loading state -->
+  <div class="ld" id="L"><div class="sp"></div><span id="lT">Processing...</span></div>
+  <!-- Log -->
+  <div class="log" id="G"></div>
+  <!-- Done state -->
+  <div class="dn" id="D">
+    <h4 id="dT"></h4>
+    <p id="dM"></p>
+    <div class="btns" style="width:100%;margin-top:8px">
+      <button class="btn btn-g" onclick="reset()">Back</button>
+      <button class="btn btn-p" onclick="PicLet.close()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Themed alert/confirm modal -->
+<div class="modal-overlay" id="modal" onclick="hideModal(event)">
+  <div class="modal">
+    <div class="modal-msg" id="modalMsg"></div>
+    <div class="modal-btns" id="modalBtns">
+      <button class="modal-btn" onclick="hideModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { $, log, fetchJson, postJson } = PicLet;
+
+// Themed alert/confirm
+let modalCallback = null;
+
+function showAlert(msg) {
+  $('modalMsg').textContent = msg;
+  $('modalBtns').innerHTML = '<button class="modal-btn" onclick="hideModal()">OK</button>';
+  $('modal').classList.add('on');
+  modalCallback = null;
+}
+
+function showConfirm(msg, onConfirm, dangerText = 'Delete') {
+  $('modalMsg').textContent = msg;
+  $('modalBtns').innerHTML = `
+    <button class="modal-btn secondary" onclick="hideModal()">Cancel</button>
+    <button class="modal-btn danger" onclick="confirmModal()">${dangerText}</button>
+  `;
+  $('modal').classList.add('on');
+  modalCallback = onConfirm;
+}
+
+function hideModal(e) {
+  if (!e || e.target === $('modal')) {
+    $('modal').classList.remove('on');
+    modalCallback = null;
+  }
+}
+
+function confirmModal() {
+  $('modal').classList.remove('on');
+  if (modalCallback) modalCallback();
+  modalCallback = null;
+}
+const pA = $('pA'), pI = $('pI');
+
+// Zoom and pan state
+let zoomScale = 1;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 4;
+const ZOOM_STEP = 0.25;
+
+function updateZoom() {
+  const img = pA.querySelector('img');
+  if (img) {
+    img.style.transform = `scale(${zoomScale})`;
+    // Remove max constraints when zoomed in
+    if (zoomScale > 1) {
+      img.style.maxWidth = 'none';
+      img.style.maxHeight = 'none';
+    } else {
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '100%';
+    }
+  }
+  $('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
+}
+
+function zoomIn() {
+  zoomScale = Math.min(ZOOM_MAX, zoomScale + ZOOM_STEP);
+  updateZoom();
+}
+
+function zoomOut() {
+  zoomScale = Math.max(ZOOM_MIN, zoomScale - ZOOM_STEP);
+  updateZoom();
+}
+
+function zoomReset() {
+  zoomScale = 1;
+  pA.scrollLeft = 0;
+  pA.scrollTop = 0;
+  updateZoom();
+}
+
+// Mouse wheel zoom (no modifier key needed)
+pA.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (e.deltaY < 0) zoomIn();
+  else zoomOut();
+}, { passive: false });
+
+// Mouse drag panning
+let isPanning = false;
+let panStart = { x: 0, y: 0 };
+let scrollStart = { x: 0, y: 0 };
+
+pA.addEventListener('mousedown', (e) => {
+  // Only pan on left click and if there's an image
+  if (e.button !== 0 || !pA.querySelector('img')) return;
+  isPanning = true;
+  panStart = { x: e.clientX, y: e.clientY };
+  scrollStart = { x: pA.scrollLeft, y: pA.scrollTop };
+  const img = pA.querySelector('img');
+  if (img) img.classList.add('panning');
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isPanning) return;
+  const dx = e.clientX - panStart.x;
+  const dy = e.clientY - panStart.y;
+  pA.scrollLeft = scrollStart.x - dx;
+  pA.scrollTop = scrollStart.y - dy;
+});
+
+document.addEventListener('mouseup', () => {
+  if (isPanning) {
+    isPanning = false;
+    const img = pA.querySelector('img');
+    if (img) img.classList.remove('panning');
+  }
+});
+
+let imageInfo = {};
+let previewTimeout = null;
+let activeTools = new Set();
+let presets = [];
+let currentDimensions = []; // Editable dimensions for storepack
+
+// Toggle tool active state
+function toggleTool(tool) {
+  const el = $('t-' + tool);
+  if (!el || el.classList.contains('disabled')) return;
+
+  if (activeTools.has(tool)) {
+    activeTools.delete(tool);
+    el.classList.remove('active');
+  } else {
+    activeTools.add(tool);
+    el.classList.add('active');
+  }
+
+  updateApplyButton();
+  schedulePreview();
+}
+
+// Update apply button state
+function updateApplyButton() {
+  $('applyBtn').disabled = activeTools.size === 0;
+}
+
+// Filter tools by file extension
+function filterTools(ext) {
+  document.querySelectorAll('.tool').forEach(el => {
+    const exts = el.dataset.ext.split(',');
+    el.classList.toggle('disabled', !exts.includes(ext));
+    if (!exts.includes(ext)) {
+      activeTools.delete(el.dataset.tool);
+      el.classList.remove('active');
+    }
+  });
+}
+
+// Scale slider update with aspect ratio lock
+let aspectRatio = 1;
+let scaleDebounce = null;
+
+function scaleSlide(dim) {
+  const locked = $('sc-lock').checked;
+  const w = $('sc-w'), h = $('sc-h');
+
+  if (locked) {
+    // When locked, only width slider is used - calculate height from ratio
+    const newW = +w.value;
+    const newH = Math.round(newW / aspectRatio);
+    h.value = Math.min(newH, +h.max);
+    $('sc-wV').textContent = newW + 'px';
+    $('sc-hV').textContent = h.value + 'px';
+  } else {
+    // Independent sliders
+    $('sc-' + dim + 'V').textContent = $('sc-' + dim).value + 'px';
+  }
+
+  // Debounced preview update while sliding
+  if (scaleDebounce) clearTimeout(scaleDebounce);
+  scaleDebounce = setTimeout(schedulePreview, 150);
+}
+
+function toggleRatioLock() {
+  const locked = $('sc-lock').checked;
+  $('sc-hRow').style.display = locked ? 'none' : 'flex';
+
+  if (locked) {
+    // Recalculate height based on current width and aspect ratio
+    const newH = Math.round(+$('sc-w').value / aspectRatio);
+    $('sc-h').value = Math.min(newH, +$('sc-h').max);
+    $('sc-hV').textContent = $('sc-h').value + 'px';
+  }
+  schedulePreview();
+}
+
+// Get combined options for all active tools
+function getOptions() {
+  const opts = { tools: Array.from(activeTools) };
+
+  if (activeTools.has('removebg')) {
+    opts.removebg = {
+      fuzz: +$('rb-fuzz').value,
+      trim: $('rb-trim').checked,
+      preserveInner: $('rb-edges').checked
+    };
+  }
+
+  if (activeTools.has('scale')) {
+    opts.scale = {
+      width: +$('sc-w').value,
+      height: +$('sc-h').value,
+      makeSquare: $('sc-sq').checked
+    };
+  }
+
+  if (activeTools.has('icons')) {
+    opts.icons = {
+      trim: $('ic-trim').checked,
+      makeSquare: $('ic-sq').checked,
+      ico: $('ic-ico').checked,
+      web: $('ic-web').checked,
+      android: $('ic-android').checked,
+      ios: $('ic-ios').checked
+    };
+  }
+
+  if (activeTools.has('storepack')) {
+    const presetSel = $('sp-preset');
+    const presetName = presetSel.value || $('sp-name').value.trim() || 'custom';
+    opts.storepack = {
+      dimensions: currentDimensions,
+      scaleMode: $('sp-mode').value,
+      presetName: presetName
+    };
+  }
+
+  return opts;
+}
+
+// Schedule preview
+function schedulePreview() {
+  if (previewTimeout) clearTimeout(previewTimeout);
+  previewTimeout = setTimeout(generatePreview, 300);
+}
+
+// Show original image
+async function showOriginal() {
+  pA.innerHTML = '<div class="mini-sp"></div>';
+  try {
+    const result = await postJson('/api/preview', { tools: [], original: true });
+    if (result.success && result.imageData) {
+      const img = document.createElement('img');
+      img.src = result.imageData;
+      pA.innerHTML = '';
+      pA.appendChild(img);
+      pI.textContent = `${imageInfo.width} × ${imageInfo.height}`;
+      updateZoom(); // Apply current zoom
+    }
+  } catch (e) {
+    pA.innerHTML = '<span class="placeholder">Failed to load image</span>';
+  }
+}
+
+// Generate preview
+async function generatePreview() {
+  if (activeTools.size === 0) {
+    showOriginal();
+    $('outSize').textContent = '-';
+    return;
+  }
+
+  // Icon pack and store pack don't have meaningful previews (icons does though - shows trimmed/squared source)
+  const previewableTools = ['removebg', 'scale', 'icons'];
+  const hasPreviewable = Array.from(activeTools).some(t => previewableTools.includes(t));
+
+  if (!hasPreviewable) {
+    showOriginal();
+    $('outSize').textContent = '(multiple files)';
+    return;
+  }
+
+  pA.innerHTML = '<div class="mini-sp"></div>';
+  pI.textContent = '';
+
+  try {
+    const result = await postJson('/api/preview', getOptions());
+    if (result.success && result.imageData) {
+      const img = document.createElement('img');
+      img.src = result.imageData;
+      pA.innerHTML = '';
+      pA.appendChild(img);
+      if (result.width && result.height) {
+        pI.textContent = `${result.width} × ${result.height}`;
+        $('outSize').textContent = `${result.width}×${result.height}`;
+      }
+      updateZoom(); // Apply current zoom
+    } else {
+      pA.innerHTML = '<span class="placeholder">' + (result.error || 'Preview failed') + '</span>';
+    }
+  } catch (e) {
+    pA.innerHTML = '<span class="placeholder">Preview error</span>';
+  }
+}
+
+// Load new image
+function loadNewImage() {
+  $('fileInput').click();
+}
+
+async function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  await loadImageFile(file);
+  e.target.value = '';
+}
+
+// Load image file (shared by file input and drag/drop)
+async function loadImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const base64 = reader.result.split(',')[1]; // Remove data URL prefix
+      const result = await postJson('/api/load', {
+        fileName: file.name,
+        data: base64,
+        mimeType: file.type
+      });
+      if (result.success) {
+        imageInfo = result;
+        updateImageInfo();
+        zoomReset(); // Reset zoom for new image
+        showOriginal();
+      } else {
+        showAlert('Failed to load image: ' + (result.error || 'Unknown error'));
+      }
+    } catch (err) {
+      showAlert('Failed to load image: ' + err.message);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// Drag and drop handlers (only for external file drops)
+function setupDragDrop() {
+  const area = pA;
+
+  area.addEventListener('dragenter', (e) => {
+    // Only respond to file drags from outside
+    if (e.dataTransfer?.types?.includes('Files')) {
+      e.preventDefault();
+      area.classList.add('dragover');
+    }
+  });
+
+  area.addEventListener('dragover', (e) => {
+    if (e.dataTransfer?.types?.includes('Files')) {
+      e.preventDefault();
+    }
+  });
+
+  area.addEventListener('dragleave', (e) => {
+    // Only remove if actually leaving the area
+    if (!area.contains(e.relatedTarget)) {
+      area.classList.remove('dragover');
+    }
+  });
+
+  area.addEventListener('drop', (e) => {
+    e.preventDefault();
+    area.classList.remove('dragover');
+
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Check if it's an image
+      if (file.type.startsWith('image/') || /\.(png|jpg|jpeg|gif|bmp|ico)$/i.test(file.name)) {
+        loadImageFile(file);
+      }
+    }
+  });
+}
+
+// Update displayed image info
+function updateImageInfo() {
+  $('fileName').textContent = imageInfo.fileName;
+  $('origSize').textContent = imageInfo.width + '×' + imageInfo.height;
+
+  const ext = '.' + imageInfo.fileName.split('.').pop().toLowerCase();
+  filterTools(ext);
+
+  // Calculate aspect ratio
+  aspectRatio = imageInfo.width / imageInfo.height;
+
+  // Set scale sliders max to image dimensions (can't upscale)
+  $('sc-w').max = imageInfo.width;
+  $('sc-h').max = imageInfo.height;
+  $('sc-w').value = imageInfo.width;
+  $('sc-h').value = imageInfo.height;
+  $('sc-wV').textContent = imageInfo.width + 'px';
+  $('sc-hV').textContent = imageInfo.height + 'px';
+}
+
+// ── Store Assets Preset Management ──
+
+// Handle preset selection change
+function onPresetChange() {
+  const sel = $('sp-preset');
+  const preset = presets.find(p => p.id === sel.value);
+  console.log('Selected preset:', sel.value, preset);
+  if (preset && preset.icons && preset.icons.length > 0) {
+    currentDimensions = preset.icons.map(i => ({ width: i.width, height: i.height, filename: i.filename }));
+    $('sp-name').value = preset.name;
+    console.log('Loaded dimensions:', currentDimensions);
+  } else {
+    currentDimensions = [];
+    $('sp-name').value = sel.value ? (preset?.name || '') : '';
+  }
+  // Hide delete button for unsaved custom presets
+  document.querySelector('.btn-del').style.display = sel.value ? '' : 'none';
+  renderDimensions();
+}
+
+// Render dimension chips
+function renderDimensions() {
+  const container = $('sp-dims');
+  container.innerHTML = currentDimensions.map((d, i) =>
+    `<div class="dim-item"><span>${d.width}</span><span class="dim-x">×</span><span>${d.height}</span><span class="dim-rm" onclick="removeDimension(${i})">×</span></div>`
+  ).join('');
+}
+
+// Add a new dimension
+function addDimension() {
+  const w = +$('sp-newW').value;
+  const h = +$('sp-newH').value;
+  console.log('Adding dimension:', w, h);
+  if (w > 0 && h > 0) {
+    // Avoid duplicates
+    if (!currentDimensions.some(d => d.width === w && d.height === h)) {
+      currentDimensions.push({ width: w, height: h, filename: `${w}x${h}.png` });
+      console.log('Current dimensions:', currentDimensions);
+      renderDimensions();
+    }
+    $('sp-newW').value = '';
+    $('sp-newH').value = '';
+  } else {
+    console.log('Invalid dimensions - w or h not > 0');
+  }
+}
+
+// Remove a dimension
+function removeDimension(idx) {
+  currentDimensions.splice(idx, 1);
+  renderDimensions();
+}
+
+// Save current dimensions as preset
+async function saveCurrentPreset() {
+  console.log('Saving preset, currentDimensions:', currentDimensions);
+  const name = $('sp-name').value.trim();
+  if (!name) {
+    showAlert('Please enter a preset name');
+    return;
+  }
+  if (currentDimensions.length === 0) {
+    showAlert('Please add at least one dimension');
+    return;
+  }
+
+  // Use selected preset ID if editing, otherwise generate from name
+  const selectedId = $('sp-preset').value;
+  const id = selectedId || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const preset = {
+    id,
+    name,
+    description: 'Custom preset',
+    icons: currentDimensions.map(d => ({
+      filename: d.filename || `${d.width}x${d.height}.png`,
+      width: d.width,
+      height: d.height
+    }))
+  };
+
+  const btn = document.querySelector('.preset-actions .btn-sm');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    const result = await postJson('/api/save-preset', preset);
+    if (result.success) {
+      // Update presets list and select the new one
+      const existing = presets.findIndex(p => p.id === id);
+      if (existing >= 0) {
+        presets[existing] = preset;
+      } else {
+        presets.push(preset);
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = name;
+        $('sp-preset').appendChild(opt);
+      }
+      $('sp-preset').value = id;
+      // Show delete button now that preset is saved
+      document.querySelector('.btn-del').style.display = '';
+
+      // Show success feedback
+      btn.textContent = 'Saved!';
+      btn.style.borderColor = '#4c6';
+      btn.style.color = '#4c6';
+      setTimeout(() => {
+        btn.textContent = 'Save Preset';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        btn.disabled = false;
+      }, 1500);
+    } else {
+      btn.textContent = 'Failed';
+      btn.style.borderColor = '#f66';
+      btn.style.color = '#f66';
+      setTimeout(() => {
+        btn.textContent = 'Save Preset';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        btn.disabled = false;
+      }, 1500);
+    }
+  } catch (e) {
+    btn.textContent = 'Error';
+    btn.style.borderColor = '#f66';
+    btn.style.color = '#f66';
+    setTimeout(() => {
+      btn.textContent = 'Save Preset';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.disabled = false;
+    }, 1500);
+  }
+}
+
+// Delete current preset
+function deleteCurrentPreset() {
+  const selectedId = $('sp-preset').value;
+  if (!selectedId) {
+    showAlert('No preset selected to delete');
+    return;
+  }
+
+  const preset = presets.find(p => p.id === selectedId);
+  const presetName = preset?.name || selectedId;
+
+  showConfirm(`Delete preset "${presetName}"?\n\nThis cannot be undone.`, async () => {
+    try {
+      const result = await postJson('/api/delete-preset', { id: selectedId });
+      if (result.success) {
+        // Remove from local presets array
+        const idx = presets.findIndex(p => p.id === selectedId);
+        if (idx >= 0) presets.splice(idx, 1);
+
+        // Remove from dropdown and reset
+        const sel = $('sp-preset');
+        const opt = sel.querySelector(`option[value="${selectedId}"]`);
+        if (opt) opt.remove();
+        sel.value = '';
+        onPresetChange();
+
+        showAlert('Preset deleted');
+      } else {
+        showAlert('Failed to delete: ' + (result.error || 'Unknown error'));
+      }
+    } catch (e) {
+      showAlert('Failed to delete: ' + e.message);
+    }
+  });
+}
+
+// Apply all selected tools
+async function apply() {
+  if (activeTools.size === 0) return;
+
+  $('M').classList.add('hide');
+  $('B').classList.add('hide');
+  $('L').classList.add('on');
+  $('G').classList.add('on');
+  $('G').innerHTML = '';
+
+  const toolNames = Array.from(activeTools).map(t => {
+    const names = { removebg: 'Remove BG', scale: 'Scale', icons: 'Icons', storepack: 'Store Assets' };
+    return names[t] || t;
+  });
+  $('lT').textContent = toolNames.join(' → ') + '...';
+
+  try {
+    const result = await postJson('/api/process', getOptions());
+
+    if (result.logs) {
+      result.logs.forEach(l => log('G', l.type[0], l.message));
+    }
+
+    $('L').classList.remove('on');
+    $('D').classList.add('on', result.success ? 'ok' : 'err');
+    $('dT').textContent = result.success ? 'Done' : 'Failed';
+    $('dM').textContent = result.success ? result.output : result.error;
+  } catch (e) {
+    log('G', 'e', e.message);
+    $('L').classList.remove('on');
+    $('D').classList.add('on', 'err');
+    $('dT').textContent = 'Error';
+    $('dM').textContent = e.message;
+  }
+}
+
+// Reset to main view
+function reset() {
+  $('D').classList.remove('on', 'ok', 'err');
+  $('G').classList.remove('on');
+  $('M').classList.remove('hide');
+  $('B').classList.remove('hide');
+}
+
+// Init
+setupDragDrop();
+setupDivider();
+
+// Resizable divider
+function setupDivider() {
+  const divider = $('divider');
+  const toolsPanel = document.querySelector('.tools-panel');
+  const main = $('M');
+  let isDragging = false;
+
+  divider.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    divider.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const mainRect = main.getBoundingClientRect();
+    // Tools width = distance from cursor to right edge
+    const toolsWidth = mainRect.right - e.clientX;
+    // Clamp: min 240px for tools, leave at least 150px for preview
+    const maxTools = mainRect.width - 150;
+    const clampedWidth = Math.max(240, Math.min(maxTools, toolsWidth));
+    toolsPanel.style.width = clampedWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      divider.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+}
+
+fetchJson('/api/info').then(d => {
+  imageInfo = d;
+  updateImageInfo();
+
+  // Load presets for store pack (full preset data)
+  const presetData = d.defaults?.presets || d.presets || [];
+  console.log('Loaded presets:', presetData);
+  if (presetData.length > 0) {
+    presets = presetData;
+    const sel = $('sp-preset');
+    sel.innerHTML = '<option value="">Custom...</option>';
+    presets.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+  }
+  // Hide delete button initially (Custom... selected)
+  document.querySelector('.btn-del').style.display = 'none';
+
+  // Show original image immediately
+  showOriginal();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html data-piclet data-width="380" data-height="560">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Store Pack</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="/js/piclet.js"></script>
+  <style>
+    .preset-select{width:100%;padding:10px 12px;background:var(--bg2);border:1px solid var(--brd);border-radius:6px;color:var(--txt);font:inherit;font-size:13px;cursor:pointer}
+    .preset-select:focus{outline:none;border-color:var(--acc)}
+    .preset-desc{font-size:11px;color:var(--txt3);margin-top:4px}
+    .icon-list{height:140px;background:var(--bg2);border-radius:6px;padding:8px;overflow-y:auto;font:11px/1.5 Consolas,monospace}
+    .icon-list div{display:flex;justify-content:space-between;padding:2px 4px;border-radius:3px}
+    .icon-list div:hover{background:var(--bg3)}
+    .icon-list .name{color:var(--txt2)}
+    .icon-list .size{color:var(--acc2);font-weight:500}
+    .icon-list .ratio{color:var(--txt3);font-size:10px;margin-left:4px}
+    .section-label{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px}
+    .scale-opts{display:flex;flex-direction:column;gap:4px}
+    .scale-opt{display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;cursor:pointer;font-size:12px;color:var(--txt2)}
+    .scale-opt:hover{border-color:var(--acc);color:var(--txt)}
+    .scale-opt input{display:none}
+    .scale-opt input:checked+.radio{background:var(--acc);border-color:var(--acc)}
+    .scale-opt input:checked+.radio::after{opacity:1}
+    .radio{width:14px;height:14px;border:1px solid var(--brd);border-radius:50%;position:relative;flex-shrink:0}
+    .radio::after{content:'';position:absolute;top:3px;left:3px;width:6px;height:6px;background:#fff;border-radius:50%;opacity:0}
+    .scale-opt span{flex:1}
+    .scale-opt small{font-size:10px;color:var(--txt3)}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="hd"><b>PicLet</b><span>Store Pack Generator</span></div>
+  <div class="meta">
+    <div>File<b id="fn">-</b></div>
+    <div>Size<b id="sz">-</b></div>
+  </div>
+  <!-- Form state -->
+  <div id="F" class="form">
+    <div>
+      <select class="preset-select" id="pS" onchange="updatePreset()">
+        <option value="">Loading...</option>
+      </select>
+      <div class="preset-desc" id="pD"></div>
+    </div>
+    <div class="section-label">Output Sizes</div>
+    <div class="icon-list" id="pI"></div>
+    <div class="section-label">Scaling Mode</div>
+    <div class="scale-opts">
+      <label class="scale-opt">
+        <input type="radio" name="scale" value="fit" checked>
+        <span class="radio"></span>
+        <span>Fit & Pad</span>
+        <small>Center, transparent padding</small>
+      </label>
+      <label class="scale-opt">
+        <input type="radio" name="scale" value="fill">
+        <span class="radio"></span>
+        <span>Fill & Crop</span>
+        <small>Cover area, crop edges</small>
+      </label>
+      <label class="scale-opt">
+        <input type="radio" name="scale" value="stretch">
+        <span class="radio"></span>
+        <span>Stretch</span>
+        <small>Distort to exact size</small>
+      </label>
+    </div>
+    <div class="btns">
+      <button class="btn btn-g" onclick="PicLet.close()">Cancel</button>
+      <button class="btn btn-p" onclick="generate()">Generate</button>
+    </div>
+  </div>
+  <!-- Loading state -->
+  <div class="ld" id="L"><div class="sp"></div><span id="lT">Generating...</span></div>
+  <!-- Log -->
+  <div class="log" id="G"></div>
+  <!-- Done state -->
+  <div class="dn" id="D">
+    <h4 id="dT"></h4>
+    <p id="dM"></p>
+    <div class="btns" style="width:100%;margin-top:8px">
+      <button class="btn btn-p" onclick="PicLet.close()">Done</button>
+    </div>
+  </div>
+</div>
+<script>
+const { $, log, fetchJson, postJson } = PicLet;
+
+let presets = [];
+let currentPreset = null;
+
+// Get aspect ratio label
+function getRatio(w, h) {
+  if (w === h) return '1:1';
+  const gcd = (a, b) => b ? gcd(b, a % b) : a;
+  const d = gcd(w, h);
+  return `${w/d}:${h/d}`;
+}
+
+// Update preset display
+function updatePreset() {
+  const id = $('pS').value;
+  currentPreset = presets.find(p => p.id === id);
+
+  if (currentPreset && currentPreset.icons) {
+    $('pD').textContent = currentPreset.description;
+    $('pI').innerHTML = currentPreset.icons.map(i => {
+      const ratio = getRatio(i.width, i.height);
+      const ratioClass = ratio !== '1:1' ? `<span class="ratio">${ratio}</span>` : '';
+      return `<div><span class="name">${i.filename}</span><span class="size">${i.width}×${i.height}${ratioClass}</span></div>`;
+    }).join('');
+  } else {
+    $('pD').textContent = '';
+    $('pI').innerHTML = '<div class="name">No icons defined</div>';
+  }
+}
+
+// Load initial data
+fetchJson('/api/info').then(d => {
+  $('fn').textContent = d.fileName;
+  $('sz').textContent = d.width + '×' + d.height;
+
+  if (d.defaults && d.defaults.presets) {
+    presets = d.defaults.presets;
+    const select = $('pS');
+    select.innerHTML = presets.map(p =>
+      `<option value="${p.id}">${p.name}</option>`
+    ).join('');
+
+    if (presets.length > 0) {
+      select.value = presets[0].id;
+      updatePreset();
+    }
+  }
+});
+
+// Get selected scale mode
+function getScaleMode() {
+  return document.querySelector('input[name="scale"]:checked')?.value || 'fit';
+}
+
+// Generate all images
+async function generate() {
+  if (!currentPreset) {
+    alert('Please select a preset');
+    return;
+  }
+
+  $('F').classList.add('hide');
+  $('L').classList.add('on');
+  $('G').classList.add('on');
+
+  try {
+    const result = await postJson('/api/process', {
+      preset: currentPreset.id,
+      scaleMode: getScaleMode()
+    });
+
+    if (result.logs) {
+      result.logs.forEach(l => log('G', l.type[0], l.message));
+    }
+
+    $('L').classList.remove('on');
+    $('D').classList.add('on', result.success ? 'ok' : 'err');
+    $('dT').textContent = result.success ? 'Done' : 'Failed';
+    $('dM').textContent = result.success ? result.output : result.error;
+  } catch (e) {
+    log('G', 'e', e.message);
+    $('L').classList.remove('on');
+    $('D').classList.add('on', 'err');
+    $('dT').textContent = 'Error';
+    $('dM').textContent = e.message;
+  }
+}
+</script>
+</body>
+</html>
