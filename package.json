@@ -1,7 +1,7 @@
 {
 	"name": "@spark-apps/piclet",
 	"version": "1.0.0",
-	"description": "Image manipulation utility toolkit with Windows shell integration",
+	"description": "Lightweight image tools for content creators",
 	"type": "module",
 	"bin": {
 		"piclet": "dist/cli.js"
@@ -31,6 +31,9 @@
 	],
 	"author": "spark-apps",
 	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/muammar-yacoob/PicLet.git"

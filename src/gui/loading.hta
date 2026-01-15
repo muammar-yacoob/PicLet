@@ -20,22 +20,22 @@
 />
 <style>
   *{margin:0;padding:0}
-  html,body{height:100%;overflow:hidden;background:linear-gradient(180deg,#0a0a0c 0%,#111113 100%)}
+  html,body{height:100%;overflow:hidden;background:linear-gradient(180deg,#0a0a0c 0%,#111113 100%);transition:opacity .4s ease-out}
+  body.fade-out{opacity:0}
   body{font-family:Segoe UI,sans-serif;color:#e4e4e7;text-align:center;padding:24px}
   .logo{width:80px;height:80px;margin-bottom:8px}
-  .title{font-size:28px;font-weight:700;color:#eab308;margin-bottom:2px}
-  .tagline{font-size:11px;color:#22c55e;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px}
+  .title{font-size:28px;font-weight:700;background:linear-gradient(135deg,#eab308 0%,#fbbf24 50%,#f59e0b 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:2px}
+  .tagline{font-size:10px;color:#fcd34d;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+  .desc{font-size:10px;color:#636366;margin-bottom:14px}
   .loading{font-size:12px;color:#636366;margin-bottom:6px}
   .dots{margin-bottom:20px}
   .dot{display:inline-block;width:6px;height:6px;background:#eab308;border-radius:50%;margin:0 3px}
-  .divider{width:80%;height:1px;background:#222;margin:0 auto 16px auto}
-  .promo{font-size:10px;color:#636366;margin-bottom:6px}
-  .brand{font-size:13px;color:#eab308;font-weight:600;text-decoration:none}
-  .brand:hover{color:#fcd34d}
-  .sub{font-size:9px;color:#4a4a4f;margin-top:4px}
+  .divider{width:80%;height:1px;background:#222;margin:0 auto 14px auto}
+  .website{display:inline-block;font-size:11px;color:#636366;text-decoration:none;padding:6px 14px;background:#111113;border:1px solid #222;border-radius:5px;transition:all .2s}
+  .website:hover{color:#eab308;border-color:#eab308;background:rgba(234,179,8,0.05)}
 </style>
 <script language="javascript">
-  var w = 280, h = 367;
+  var w = 280, h = 360;
   window.resizeTo(w, h);
   window.moveTo((screen.availWidth - w) / 2, (screen.availHeight - h) / 2);
 
@@ -46,10 +46,13 @@
   var fso = new ActiveXObject("Scripting.FileSystemObject");
   var shell = new ActiveXObject("WScript.Shell");
   var readyFile = shell.ExpandEnvironmentStrings("%TEMP%") + "\\piclet-ready.tmp";
+  var closing = false;
   setInterval(function() {
-    if (fso.FileExists(readyFile)) {
+    if (!closing && fso.FileExists(readyFile)) {
+      closing = true;
       try { fso.DeleteFile(readyFile); } catch(e) {}
-      window.close();
+      document.body.className = 'fade-out';
+      setTimeout(function() { window.close(); }, 400);
     }
   }, 200);
 
@@ -72,7 +75,8 @@
 <body>
   <img class="logo" src="img/logo.ico">
   <div class="title">PicLet</div>
-  <div class="tagline">Peeling Pixels With Style</div>
+  <div class="tagline">Edit. Scale. Ship.</div>
+  <div class="desc">Lightweight image tools for content creators</div>
   <div class="loading">Loading your tools...</div>
   <div class="dots">
     <div id="d1" class="dot"></div>
@@ -80,8 +84,6 @@
     <div id="d3" class="dot"></div>
   </div>
   <div class="divider"></div>
-  <div class="promo">A free tool by</div>
-  <a class="brand" href="https://spark-games.co.uk" target="_blank">spark-games.co.uk</a>
-  <div class="sub">Game Dev Tools & Resources</div>
+  <a class="website" href="#" onclick="shell.Run('https://piclet.app');return false">piclet.app</a>
 </body>
 </html>

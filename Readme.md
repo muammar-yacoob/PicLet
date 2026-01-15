@@ -169,10 +169,8 @@ When you run `piclet iconpack`, it generates:
 
 ## Support & Contributions
 
-⭐ Star the repo and I power up like Mario!
-
-☕ Devs run on [coffee][coffee-link].
-
+⭐ Star the repo and I power up like Mario!<br>
+☕ Devs run on [coffee][coffee-link].<br>
 🤝 [Contributions][fork-link] are welcome.
 
 ---
