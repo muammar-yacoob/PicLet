@@ -47,8 +47,7 @@
       </div>
     </div>
     <div class="opts">
-      <label class="opt" data-tip="Keep original width/height proportions when resizing"><input type="checkbox" id="cA" checked><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Lock ratio</label>
-      <label class="opt" data-tip="Add transparent padding to make output square"><input type="checkbox" id="cS"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Make square</label>
+      <label class="opt" data-tip="Add transparent padding to make output square"><input type="checkbox" id="cS"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Square output</label>
     </div>
     <div class="btns">
       <button class="btn btn-g" onclick="PicLet.close()">Cancel</button>
@@ -70,11 +69,12 @@
 </div>
 <script>
 const { $, log, fetchJson, postJson } = PicLet;
-const wR = $('wR'), hR = $('hR'), wV = $('wV'), hV = $('hV'), pA = $('pA'), pI = $('pI');
+const wR = $('wR'), hR = $('hR'), wV = $('wV'), hV = $('hV');
+const pA = $('pA'), pI = $('pI');
 
 let origW = 1000, origH = 1000;
 let previewTimeout = null;
-let isSlidingW = false, isSlidingH = false;
+let isSliding = false;
 let lastPreviewOpts = null;
 
 // Update value displays
@@ -83,48 +83,23 @@ function updateValues() {
   hV.textContent = hR.value + 'px';
 }
 
-// Check if aspect ratio should be preserved
-function preserveAspect() {
-  return $('cA').checked;
-}
+// Slider input handlers
+wR.oninput = updateValues;
+hR.oninput = updateValues;
 
-// Sync dimensions when preserving aspect ratio
-wR.oninput = () => {
-  if (preserveAspect()) {
-    const ratio = origH / origW;
-    hR.value = Math.min(Math.round(+wR.value * ratio), +hR.max);
-  }
-  updateValues();
-};
+// Track sliding state
+[wR, hR].forEach(slider => {
+  slider.addEventListener('mousedown', () => { isSliding = true; });
+  slider.addEventListener('mouseup', () => { isSliding = false; schedulePreview(); });
+  slider.addEventListener('mouseleave', () => { if (isSliding) { isSliding = false; schedulePreview(); } });
+});
 
-hR.oninput = () => {
-  if (preserveAspect()) {
-    const ratio = origW / origH;
-    wR.value = Math.min(Math.round(+hR.value * ratio), +wR.max);
-  }
-  updateValues();
-};
-
-// Track mouse state on sliders
-wR.addEventListener('mousedown', () => { isSlidingW = true; });
-wR.addEventListener('mouseup', () => { isSlidingW = false; schedulePreview(); });
-wR.addEventListener('mouseleave', () => { if (isSlidingW) { isSlidingW = false; schedulePreview(); } });
-
-hR.addEventListener('mousedown', () => { isSlidingH = true; });
-hR.addEventListener('mouseup', () => { isSlidingH = false; schedulePreview(); });
-hR.addEventListener('mouseleave', () => { if (isSlidingH) { isSlidingH = false; schedulePreview(); } });
-
-// Checkbox changes trigger preview
-$('cA').onchange = schedulePreview;
+// Checkbox change
 $('cS').onchange = schedulePreview;
 
 // Get current options
 function getOptions() {
-  return {
-    width: +wR.value,
-    height: +hR.value,
-    makeSquare: $('cS').checked
-  };
+  return { width: +wR.value, height: +hR.value, makeSquare: $('cS').checked };
 }
 
 // Check if options changed
@@ -135,12 +110,12 @@ function optionsChanged() {
   return true;
 }
 
-// Schedule preview (debounced, only when not sliding)
+// Schedule preview
 function schedulePreview() {
-  if (isSlidingW || isSlidingH) return;
+  if (isSliding) return;
   if (previewTimeout) clearTimeout(previewTimeout);
   previewTimeout = setTimeout(() => {
-    if (!isSlidingW && !isSlidingH && optionsChanged()) {
+    if (!isSliding && optionsChanged()) {
       generatePreview();
     }
   }, 300);
@@ -178,17 +153,13 @@ fetchJson('/api/info').then(d => {
   origW = d.width;
   origH = d.height;
 
-  // Set max to 150% of original
-  const maxW = Math.round(origW * 1.5);
-  const maxH = Math.round(origH * 1.5);
-  wR.max = maxW;
-  hR.max = maxH;
-  wR.min = 16;
-  hR.min = 16;
+  // Max = original dimensions
+  wR.max = origW;
+  hR.max = origH;
 
-  // Default to 50% scale
-  wR.value = Math.round(origW / 2);
-  hR.value = Math.round(origH / 2);
+  // Default = original size
+  wR.value = origW;
+  hR.value = origH;
   updateValues();
 
   // Generate initial preview

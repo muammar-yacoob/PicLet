@@ -7,7 +7,9 @@ import {
 	checkImageMagick,
 	cleanup,
 	createIco,
+	getBorderColor,
 	getDimensions,
+	removeBackground,
 	scaleToSize,
 	squarify,
 	trim,
@@ -17,6 +19,8 @@ import { pauseOnError } from '../lib/prompts.js';
 
 /** Processing options for makeicon */
 interface ProcessOptions {
+	removeBg: boolean;
+	fuzz: number;
 	trim: boolean;
 	makeSquare: boolean;
 }
@@ -112,21 +116,35 @@ async function processForIcon(
 	output: string,
 	options: ProcessOptions,
 	logs?: Array<{ type: string; message: string }>,
+	borderColor?: string | null,
 ): Promise<boolean> {
 	const fileInfo = getFileInfo(input);
+	const tempNoBg = `${fileInfo.dirname}/${fileInfo.filename}_nobg.png`;
 	const tempTrimmed = `${fileInfo.dirname}/${fileInfo.filename}_trimmed.png`;
 	const tempSquare = `${fileInfo.dirname}/${fileInfo.filename}_square.png`;
 	const tempScaled = `${fileInfo.dirname}/${fileInfo.filename}_scaled.png`;
 
 	let currentInput = input;
 
+	// Step 0: Remove background (optional)
+	if (options.removeBg && borderColor) {
+		logs?.push({ type: 'info', message: `Removing background (fuzz: ${options.fuzz}%)...` });
+		if (!(await removeBackground(currentInput, tempNoBg, borderColor, options.fuzz))) {
+			cleanup(tempNoBg);
+			return false;
+		}
+		currentInput = tempNoBg;
+		logs?.push({ type: 'success', message: 'Background removed' });
+	}
+
 	// Step 1: Trim (optional)
 	if (options.trim) {
 		logs?.push({ type: 'info', message: 'Trimming transparent areas...' });
 		if (!(await trim(currentInput, tempTrimmed))) {
-			cleanup(tempTrimmed);
+			cleanup(tempNoBg, tempTrimmed);
 			return false;
 		}
+		if (currentInput === tempNoBg) cleanup(tempNoBg);
 		currentInput = tempTrimmed;
 		logs?.push({ type: 'success', message: 'Trimmed' });
 	}
@@ -135,10 +153,11 @@ async function processForIcon(
 	if (options.makeSquare) {
 		logs?.push({ type: 'info', message: 'Making square...' });
 		if (!(await squarify(currentInput, tempSquare))) {
-			cleanup(tempTrimmed, tempSquare);
+			cleanup(tempNoBg, tempTrimmed, tempSquare);
 			return false;
 		}
 		if (currentInput === tempTrimmed) cleanup(tempTrimmed);
+		else if (currentInput === tempNoBg) cleanup(tempNoBg);
 		currentInput = tempSquare;
 		logs?.push({ type: 'success', message: 'Made square' });
 	}
@@ -146,11 +165,12 @@ async function processForIcon(
 	// Step 3: Scale to 512px
 	logs?.push({ type: 'info', message: 'Scaling to 512px...' });
 	if (!(await scaleToSize(currentInput, tempScaled, 512))) {
-		cleanup(tempTrimmed, tempSquare, tempScaled);
+		cleanup(tempNoBg, tempTrimmed, tempSquare, tempScaled);
 		return false;
 	}
 	if (currentInput === tempSquare) cleanup(tempSquare);
 	else if (currentInput === tempTrimmed) cleanup(tempTrimmed);
+	else if (currentInput === tempNoBg) cleanup(tempNoBg);
 	logs?.push({ type: 'success', message: 'Scaled to 512x512' });
 
 	// Step 4: Create ICO
@@ -171,9 +191,11 @@ async function processForIcon(
 async function generatePreview(
 	input: string,
 	options: ProcessOptions,
+	borderColor?: string | null,
 ): Promise<{ success: boolean; imageData?: string; width?: number; height?: number; error?: string }> {
 	const tempDir = tmpdir();
 	const timestamp = Date.now();
+	const tempNoBg = join(tempDir, `piclet-preview-nobg-${timestamp}.png`);
 	const tempTrimmed = join(tempDir, `piclet-preview-trimmed-${timestamp}.png`);
 	const tempSquare = join(tempDir, `piclet-preview-square-${timestamp}.png`);
 	const tempOutput = join(tempDir, `piclet-preview-${timestamp}.png`);
@@ -181,32 +203,44 @@ async function generatePreview(
 	try {
 		let currentInput = input;
 
+		// Remove background if enabled
+		if (options.removeBg && borderColor) {
+			if (!(await removeBackground(currentInput, tempNoBg, borderColor, options.fuzz))) {
+				cleanup(tempNoBg);
+				return { success: false, error: 'Remove BG failed' };
+			}
+			currentInput = tempNoBg;
+		}
+
 		// Trim if enabled
 		if (options.trim) {
 			if (!(await trim(currentInput, tempTrimmed))) {
-				cleanup(tempTrimmed);
+				cleanup(tempNoBg, tempTrimmed);
 				return { success: false, error: 'Trim failed' };
 			}
+			if (currentInput === tempNoBg) cleanup(tempNoBg);
 			currentInput = tempTrimmed;
 		}
 
 		// Squarify if enabled
 		if (options.makeSquare) {
 			if (!(await squarify(currentInput, tempSquare))) {
-				cleanup(tempTrimmed, tempSquare);
+				cleanup(tempNoBg, tempTrimmed, tempSquare);
 				return { success: false, error: 'Square failed' };
 			}
 			if (currentInput === tempTrimmed) cleanup(tempTrimmed);
+			else if (currentInput === tempNoBg) cleanup(tempNoBg);
 			currentInput = tempSquare;
 		}
 
 		// Scale to preview size (256px)
 		if (!(await scaleToSize(currentInput, tempOutput, 256))) {
-			cleanup(tempTrimmed, tempSquare, tempOutput);
+			cleanup(tempNoBg, tempTrimmed, tempSquare, tempOutput);
 			return { success: false, error: 'Scale failed' };
 		}
 		if (currentInput === tempSquare) cleanup(tempSquare);
 		else if (currentInput === tempTrimmed) cleanup(tempTrimmed);
+		else if (currentInput === tempNoBg) cleanup(tempNoBg);
 
 		const buffer = readFileSync(tempOutput);
 		const base64 = buffer.toString('base64');
@@ -222,7 +256,7 @@ async function generatePreview(
 			height: dims?.[1],
 		};
 	} catch (err) {
-		cleanup(tempTrimmed, tempSquare, tempOutput);
+		cleanup(tempNoBg, tempTrimmed, tempSquare, tempOutput);
 		return { success: false, error: (err as Error).message };
 	}
 }
@@ -244,6 +278,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 		return false;
 	}
 
+	const borderColor = await getBorderColor(input);
 	const fileInfo = getFileInfo(input);
 
 	return startGuiServer({
@@ -254,18 +289,22 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			fileName: basename(input),
 			width: dims[0],
 			height: dims[1],
-			borderColor: null,
+			borderColor,
 		},
 		defaults: {
+			removeBg: false,
+			fuzz: 10,
 			trim: true,
 			makeSquare: true,
 		},
 		onPreview: async (opts) => {
 			const options: ProcessOptions = {
+				removeBg: (opts.removeBg as boolean) ?? false,
+				fuzz: (opts.fuzz as number) ?? 10,
 				trim: (opts.trim as boolean) ?? true,
 				makeSquare: (opts.makeSquare as boolean) ?? true,
 			};
-			return generatePreview(input, options);
+			return generatePreview(input, options, borderColor);
 		},
 		onProcess: async (opts) => {
 			const logs: Array<{ type: string; message: string }> = [];
@@ -279,13 +318,15 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			}
 
 			const options: ProcessOptions = {
+				removeBg: (opts.removeBg as boolean) ?? false,
+				fuzz: (opts.fuzz as number) ?? 10,
 				trim: (opts.trim as boolean) ?? true,
 				makeSquare: (opts.makeSquare as boolean) ?? true,
 			};
 
 			const output = `${fileInfo.dirname}/${fileInfo.filename}.ico`;
 
-			const success = await processForIcon(input, output, options, logs);
+			const success = await processForIcon(input, output, options, logs, borderColor);
 
 			if (success) {
 				return {
