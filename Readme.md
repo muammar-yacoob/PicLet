@@ -10,7 +10,7 @@
 
 # PicLet
 
-**Professional image manipulation toolkit • CLI, GUI, and Web**
+**Lightweight image tools for content creators • CLI, GUI, and Web**
 
 [![npm version](https://img.shields.io/npm/v/@spark-apps/piclet?color=blue)](https://www.npmjs.com/package/@spark-apps/piclet)
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/muammar-yacoob?label=Sponsor&logo=github-sponsors&logoColor=white&color=pink)](https://github.com/sponsors/muammar-yacoob)
@@ -74,60 +74,45 @@
 
 ---
 
-## Screenshots
+## Get Started
 
-### GUI Desktop App (Windows)
+### 🌐 Web Version (No Installation)
 
-<div align="center">
-<img src="demo/demo.png" alt="PicLet GUI Preview" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-<p><em>All tools in one intuitive interface with real-time preview</em></p>
-</div>
+Visit **[piclet.app](https://piclet.app)** - Works in any modern browser, 100% client-side processing.
 
-### CLI (Command Line)
+### 💻 Desktop Version (Windows)
 
-<div align="center">
-<img src="demo/cli.jpg" alt="PicLet CLI Preview" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 600px;">
-<p><em>Fast command-line image processing for batch operations</em></p>
-</div>
-
----
-
-## Installation
-
-### Via npm (Recommended)
+Download and install via npm for CLI access and Windows Explorer integration:
 
 ```bash
 npm install -g @spark-apps/piclet
 ```
 
-This automatically registers the Windows context menu entries for GUI access.
-
-### Requirements
-
-- **Windows** with WSL (Windows Subsystem for Linux)
-- **ImageMagick** in WSL:
-  ```bash
-  sudo apt update && sudo apt install imagemagick
-  ```
-- **Node.js** >= 18
+**Requirements:**
+- Windows with WSL (Windows Subsystem for Linux)
+- ImageMagick in WSL: `sudo apt update && sudo apt install imagemagick`
+- Node.js >= 18
 
 ---
 
-## Usage
+## Desktop Usage
 
-### 🌐 Web Version (Easiest)
+### 🖱️ GUI Mode (Right-Click Integration)
 
-Visit **[piclet.app](https://piclet.app)** - No installation required, works in any modern browser.
-
-### 🖱️ GUI (Right-Click Context Menu)
-
-Right-click any supported image file in Windows Explorer to see PicLet options:
+Right-click any image file in Windows Explorer to access PicLet tools:
 
 <div align="center">
-<img src="res/imgs/menu.png" style="border: 1px solid #eee; border-radius: 4px; max-width: 500px;" alt="PicLet Menu">
+<img src="res/imgs/menu.png" style="border: 1px solid #eee; border-radius: 4px; max-width: 500px;" alt="PicLet Context Menu">
 </div>
 
-### ⌨️ CLI (Command Line)
+<div align="center">
+<img src="res/imgs/demo.png" alt="PicLet GUI" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 700px;">
+<p><em>GUI with real-time preview and batch processing</em></p>
+</div>
+
+### ⌨️ CLI Mode (Command Line)
+
+Fast batch processing via terminal:
 
 ```bash
 # Convert PNG to ICO
@@ -142,11 +127,16 @@ piclet scale image.jpg
 # Generate icon pack for all platforms
 piclet iconpack app-icon.png
 
-# Generate store assets (GUI only - opens GUI with preset)
+# Open GUI with store assets preset
 piclet storepack image.png
 ```
 
-### Manual Registry Management
+<div align="center">
+<img src="res/imgs/cli.jpg" alt="PicLet CLI" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 600px;">
+<p><em>CLI for automation and batch operations</em></p>
+</div>
+
+### Registry Management
 
 ```bash
 # Re-register context menu entries
@@ -154,15 +144,10 @@ piclet install
 
 # Remove context menu entries
 piclet uninstall
-```
 
-## Uninstallation
-
-```bash
+# Uninstall completely
 npm uninstall -g @spark-apps/piclet
 ```
-
-This automatically removes the Windows context menu entries.
 
 ## Icon Pack Output
 
