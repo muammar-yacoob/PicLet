@@ -8,6 +8,7 @@ export default defineConfig({
 	sourcemap: true,
 	dts: false,
 	shims: true,
+	silent: true,
 	onSuccess: async () => {
 		const { cpSync, readFileSync, writeFileSync } = await import('node:fs');
 
@@ -26,7 +27,5 @@ export default defineConfig({
 		if (!content.startsWith('#!/usr/bin/env node')) {
 			writeFileSync(cliPath, `#!/usr/bin/env node\n${content}`);
 		}
-
-		console.log('Copied assets to dist/');
 	},
 });

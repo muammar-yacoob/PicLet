@@ -1,8 +1,9 @@
 import chalk from 'chalk';
 import type { Command } from 'commander';
 import { showBanner } from '../../lib/banner.js';
-import { isWSL } from '../../lib/registry.js';
-import { registerAllTools, unregisterAllTools } from '../registry.js';
+import { wslToWindows } from '../../lib/paths.js';
+import { isWSL, isWSLInteropEnabled } from '../../lib/registry.js';
+import { generateRegFile, registerAllTools, unregisterAllTools } from '../registry.js';
 import { tools } from '../tools.js';
 
 export function registerInstallCommand(program: Command): void {
@@ -23,6 +24,21 @@ export function registerInstallCommand(program: Command): void {
 				return;
 			}
 
+			if (!isWSLInteropEnabled()) {
+				console.log(chalk.yellow('WSL Interop not available. Generating registry file...\n'));
+
+				const regPath = await generateRegFile();
+				const winPath = wslToWindows(regPath);
+
+				console.log(chalk.green('✓ Generated registry file:'));
+				console.log(chalk.cyan(`  ${winPath}\n`));
+				console.log(chalk.bold('To install, either:'));
+				console.log(chalk.dim('  1. Double-click the .reg file in Windows Explorer'));
+				console.log(chalk.dim(`  2. Run in elevated PowerShell: reg import "${winPath}"`));
+				console.log();
+				return;
+			}
+
 			// Clean up existing entries first
 			console.log(chalk.dim('Removing old entries...'));
 			await unregisterAllTools();
@@ -31,16 +47,16 @@ export function registerInstallCommand(program: Command): void {
 			const results = await registerAllTools();
 			const allSuccess = results.every((r) => r.success);
 
-			// Display each tool with its extensions
+			// Display each tool with its supported extensions
 			for (const { config } of tools) {
 				const extList = config.extensions.join(', ');
-				console.log(`${chalk.green('✓')} ${config.name} [${extList}]`);
+				console.log(`${chalk.green('✓')} ${config.name} ${chalk.dim(`[${extList}]`)}`);
 			}
 
 			console.log();
 			if (allSuccess) {
 				console.log(
-					chalk.green(`✓ Registered ${tools.length} context menu entries.`),
+					chalk.green(`✓ Registered ${tools.length} tools for context menu.`),
 				);
 			} else {
 				const successCount = results.filter((r) => r.success).length;

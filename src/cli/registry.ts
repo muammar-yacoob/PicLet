@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { wslToWindows } from '../lib/paths.js';
 import { addRegistryKey, deleteRegistryKey } from '../lib/registry.js';
@@ -160,4 +161,86 @@ export async function unregisterAllTools(): Promise<RegistrationResult[]> {
 	}
 
 	return results;
+}
+
+/**
+ * Escape a string value for .reg file format
+ */
+function escapeRegValue(value: string): string {
+	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
+ * Generate registry content for unified PicLet menu
+ */
+function generateRegContent(): string {
+	const distDir = getDistDir();
+	const iconsDir = join(distDir, 'icons');
+	const launcherPath = join(distDir, 'launcher.vbs');
+	const iconsDirWin = wslToWindows(iconsDir);
+	const launcherWin = wslToWindows(launcherPath);
+
+	const lines: string[] = ['Windows Registry Editor Version 5.00', ''];
+
+	// Register unified PicLet menu for each supported extension
+	for (const extension of picletTool.config.extensions) {
+		const basePath = `HKEY_CURRENT_USER\\Software\\Classes\\SystemFileAssociations\\${extension}\\shell\\PicLet`;
+
+		lines.push(`[${basePath}]`);
+		lines.push(`"MUIVerb"="${escapeRegValue('PicLet')}"`);
+		lines.push(`"Icon"="${escapeRegValue(`${iconsDirWin}\\banana.ico`)}"`);
+		lines.push('"MultiSelectModel"="Player"');
+		lines.push('');
+
+		// Command - opens unified GUI
+		const commandValue = `wscript.exe //B "${launcherWin}" piclet "%1" -g`;
+		lines.push(`[${basePath}\\command]`);
+		lines.push(`@="${escapeRegValue(commandValue)}"`);
+		lines.push('');
+	}
+
+	return lines.join('\r\n');
+}
+
+/**
+ * Generate uninstall registry content (deletion entries)
+ */
+function generateUninstallRegContent(): string {
+	const lines: string[] = ['Windows Registry Editor Version 5.00', ''];
+
+	// Delete from all extensions (both unified and legacy)
+	const allExts = new Set([...getAllExtensions(), ...picletTool.config.extensions]);
+	for (const extension of allExts) {
+		const basePath = `HKEY_CURRENT_USER\\Software\\Classes\\SystemFileAssociations\\${extension}\\shell\\PicLet`;
+
+		// Delete the entire PicLet key (minus sign deletes)
+		lines.push(`[-${basePath}]`);
+		lines.push('');
+	}
+
+	return lines.join('\r\n');
+}
+
+/**
+ * Generate a .reg file for installation
+ * @returns Path to the generated .reg file
+ */
+export async function generateRegFile(): Promise<string> {
+	const distDir = getDistDir();
+	const regPath = join(distDir, 'piclet-install.reg');
+	const content = generateRegContent();
+	await writeFile(regPath, content, 'utf-8');
+	return regPath;
+}
+
+/**
+ * Generate a .reg file for uninstallation
+ * @returns Path to the generated .reg file
+ */
+export async function generateUninstallRegFile(): Promise<string> {
+	const distDir = getDistDir();
+	const regPath = join(distDir, 'piclet-uninstall.reg');
+	const content = generateUninstallRegContent();
+	await writeFile(regPath, content, 'utf-8');
+	return regPath;
 }

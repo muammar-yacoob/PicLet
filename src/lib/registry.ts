@@ -1,4 +1,5 @@
 import { exec } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -14,6 +15,13 @@ export function isWSL(): boolean {
 		(process.env.WSL_DISTRO_NAME !== undefined ||
 			process.env.WSLENV !== undefined)
 	);
+}
+
+/**
+ * Check if WSL interop is enabled (can run Windows executables)
+ */
+export function isWSLInteropEnabled(): boolean {
+	return existsSync('/proc/sys/fs/binfmt_misc/WSLInterop');
 }
 
 /**

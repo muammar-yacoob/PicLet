@@ -1,8 +1,9 @@
 import chalk from 'chalk';
 import type { Command } from 'commander';
 import { showBanner } from '../../lib/banner.js';
-import { isWSL } from '../../lib/registry.js';
-import { unregisterAllTools } from '../registry.js';
+import { wslToWindows } from '../../lib/paths.js';
+import { isWSL, isWSLInteropEnabled } from '../../lib/registry.js';
+import { generateUninstallRegFile, unregisterAllTools } from '../registry.js';
 
 export function registerUninstallCommand(program: Command): void {
 	program
@@ -21,6 +22,21 @@ export function registerUninstallCommand(program: Command): void {
 						'! Run "piclet uninstall" from WSL to remove context menu.',
 					),
 				);
+				return;
+			}
+
+			if (!isWSLInteropEnabled()) {
+				console.log(chalk.yellow('WSL Interop not available. Generating registry file...\n'));
+
+				const regPath = await generateUninstallRegFile();
+				const winPath = wslToWindows(regPath);
+
+				console.log(chalk.green('✓ Generated uninstall registry file:'));
+				console.log(chalk.cyan(`  ${winPath}\n`));
+				console.log(chalk.bold('To uninstall, either:'));
+				console.log(chalk.dim('  1. Double-click the .reg file in Windows Explorer'));
+				console.log(chalk.dim(`  2. Run in elevated PowerShell: reg import "${winPath}"`));
+				console.log();
 				return;
 			}
 
