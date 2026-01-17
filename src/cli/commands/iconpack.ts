@@ -1,0 +1,36 @@
+import chalk from 'chalk';
+import type { Command } from 'commander';
+import * as iconpack from '../../tools/iconpack.js';
+import { runToolOnFiles, validateExtensions } from '../utils.js';
+
+export function registerIconpackCommand(program: Command): void {
+	program
+		.command('iconpack <files...>')
+		.description('Generate icon sets for Web, Android, iOS')
+		.option('-y, --yes', 'Use defaults, skip prompts')
+		.option('-g, --gui', 'Use GUI for options')
+		.action(async (files: string[], options: { yes?: boolean; gui?: boolean }) => {
+			// GUI mode
+			if (options.gui) {
+				const { valid, invalid } = validateExtensions(files, iconpack.config.extensions);
+				if (invalid.length > 0) {
+					console.error(chalk.red('Invalid file types:'));
+					for (const file of invalid) {
+						console.error(chalk.red(`  - ${file}`));
+					}
+				}
+				if (valid.length === 0) {
+					process.exit(1);
+				}
+				const result = await iconpack.runGUI(valid[0]);
+				process.exit(result ? 0 : 1);
+			}
+
+			const success = await runToolOnFiles(
+				'iconpack',
+				files,
+				options.yes ?? false,
+			);
+			process.exit(success ? 0 : 1);
+		});
+}
