@@ -3,6 +3,7 @@ import type { Command } from 'commander';
 import { showBanner } from '../../lib/banner.js';
 import { isWSL } from '../../lib/registry.js';
 import { registerAllTools, unregisterAllTools } from '../registry.js';
+import { tools } from '../tools.js';
 
 export function registerInstallCommand(program: Command): void {
 	program
@@ -28,42 +29,23 @@ export function registerInstallCommand(program: Command): void {
 			console.log();
 
 			const results = await registerAllTools();
+			const allSuccess = results.every((r) => r.success);
 
-			// Group results by tool name
-			const grouped = new Map<string, { extensions: string[]; allSuccess: boolean }>();
-			for (const result of results) {
-				const existing = grouped.get(result.toolName);
-				if (existing) {
-					existing.extensions.push(result.extension);
-					existing.allSuccess = existing.allSuccess && result.success;
-				} else {
-					grouped.set(result.toolName, {
-						extensions: [result.extension],
-						allSuccess: result.success,
-					});
-				}
-			}
-
-			// Display grouped results
-			let successCount = 0;
-			for (const [toolName, { extensions, allSuccess }] of grouped) {
-				const extList = extensions.join(', ');
-				if (allSuccess) {
-					console.log(`${chalk.green('✓')} ${toolName} ${chalk.dim(`[${extList}]`)}`);
-					successCount++;
-				} else {
-					console.log(`${chalk.red('✗')} ${toolName} ${chalk.dim(`[${extList}]`)} ${chalk.red('(failed)')}`);
-				}
+			// Display each tool with its extensions
+			for (const { config } of tools) {
+				const extList = config.extensions.join(', ');
+				console.log(`${chalk.green('✓')} ${config.name} [${extList}]`);
 			}
 
 			console.log();
-			if (successCount === grouped.size) {
+			if (allSuccess) {
 				console.log(
-					chalk.green(`✓ Registered ${grouped.size} context menu entries.`),
+					chalk.green(`✓ Registered ${tools.length} context menu entries.`),
 				);
 			} else {
+				const successCount = results.filter((r) => r.success).length;
 				console.log(
-					chalk.yellow(`! Registered ${successCount}/${grouped.size} entries.`),
+					chalk.yellow(`! Registered ${successCount}/${results.length} entries.`),
 				);
 			}
 
