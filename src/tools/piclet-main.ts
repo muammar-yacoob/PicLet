@@ -11,8 +11,10 @@ import {
 	cleanup,
 	createIco,
 	createIcoFromMultiple,
+	extractFirstFrame,
 	getBorderColor,
 	getDimensions,
+	isMultiFrame,
 	removeBackground,
 	removeBackgroundBorderOnly,
 	resize,
@@ -91,15 +93,23 @@ async function generateCombinedPreview(
 	try {
 		let current = input;
 
+		// For GIFs, extract first frame only for fast preview
+		if (isMultiFrame(input)) {
+			const frameTemp = makeTempPath('frame');
+			if (await extractFirstFrame(input, frameTemp)) {
+				current = frameTemp;
+			}
+		}
+
 		// If just showing original, scale it for preview and return
 		if (opts.original || opts.tools.length === 0) {
-			const dims = await getDimensions(input);
-			let previewPath = input;
+			const dims = await getDimensions(current);
+			let previewPath = current;
 
 			if (dims && (dims[0] > 512 || dims[1] > 512)) {
 				const scaled = makeTempPath('orig-preview');
 				const targetSize = Math.min(512, Math.max(dims[0], dims[1]));
-				if (await scaleToSize(input, scaled, targetSize)) {
+				if (await scaleToSize(current, scaled, targetSize)) {
 					previewPath = scaled;
 				}
 			}

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" data-piclet data-width="400" data-height="440">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Add Border</title>
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="/js/piclet.js"></script>
+  <style>
+    .preview-area{flex:1;display:flex;align-items:center;justify-content:center;background:var(--bg2);border-radius:6px;min-height:140px;overflow:hidden;position:relative}
+    .preview-area::before{content:'';position:absolute;inset:0;background:repeating-conic-gradient(#1a1a1d 0% 25%, #222 0% 50%) 50%/16px 16px;z-index:0}
+    .preview-area img{max-width:100%;max-height:100%;object-fit:contain;position:relative;z-index:1}
+    .preview-area .placeholder{position:relative;z-index:1;font-size:11px;color:var(--txt3)}
+    .preview-area .mini-sp{width:16px;height:16px;border:2px solid var(--bg3);border-top-color:var(--acc);border-radius:50%;animation:s .5s linear infinite;position:relative;z-index:1}
+    .preview-info{font-size:10px;color:var(--txt3);text-align:center;margin-top:4px;height:14px}
+    .controls{display:flex;flex-direction:column;gap:10px}
+    .control-row{display:flex;align-items:center;gap:10px}
+    .control-row label{font-size:11px;color:var(--txt3);width:50px;flex-shrink:0}
+    .control-row input[type="range"]{flex:1;height:4px;background:var(--bg3);border-radius:3px;-webkit-appearance:none}
+    .control-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--acc);border-radius:50%;cursor:pointer}
+    .control-row .val{width:40px;font-size:12px;color:var(--acc2);text-align:right;font-weight:500}
+    .color-row{display:flex;align-items:center;gap:10px}
+    .color-row label{font-size:11px;color:var(--txt3);width:50px;flex-shrink:0}
+    .color-input-wrap{flex:1;display:flex;align-items:center;gap:8px}
+    .color-preview{width:28px;height:28px;border-radius:4px;border:1px solid var(--brd);cursor:pointer;flex-shrink:0}
+    .color-input-wrap input[type="color"]{position:absolute;opacity:0;width:28px;height:28px;cursor:pointer}
+    .color-input-wrap input[type="text"]{flex:1;padding:6px 10px;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--txt);font:inherit;font-size:12px}
+    .color-input-wrap input[type="text"]:focus{outline:none;border-color:var(--acc)}
+    .preset-colors{display:flex;gap:4px;margin-left:auto}
+    .preset-color{width:20px;height:20px;border-radius:3px;border:1px solid var(--brd);cursor:pointer;transition:transform .1s}
+    .preset-color:hover{transform:scale(1.1)}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="hd"><b>PicLet</b><span>Add Border</span></div>
+  <div class="meta">
+    <div>File<b id="fn">-</b></div>
+    <div>Size<b id="sz">-</b></div>
+  </div>
+  <!-- Form -->
+  <div id="F" class="form">
+    <div class="preview-area" id="pA">
+      <span class="placeholder">Adjust to preview</span>
+    </div>
+    <div class="preview-info" id="pI"></div>
+    <div class="controls">
+      <div class="control-row">
+        <label>Width</label>
+        <input type="range" id="wR" min="1" max="100" value="10">
+        <span class="val" id="wV">10px</span>
+      </div>
+      <div class="color-row">
+        <label>Color</label>
+        <div class="color-input-wrap">
+          <div class="color-preview" id="cP" style="background:#ffffff"></div>
+          <input type="color" id="cC" value="#ffffff">
+          <input type="text" id="cT" value="#ffffff" placeholder="#ffffff">
+          <div class="preset-colors">
+            <div class="preset-color" style="background:#ffffff" data-color="#ffffff"></div>
+            <div class="preset-color" style="background:#000000" data-color="#000000"></div>
+            <div class="preset-color" style="background:#eab308" data-color="#eab308"></div>
+            <div class="preset-color" style="background:#ef4444" data-color="#ef4444"></div>
+            <div class="preset-color" style="background:#3b82f6" data-color="#3b82f6"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-g" onclick="PicLet.close()">Cancel</button>
+      <button class="btn btn-p" onclick="apply()">Apply</button>
+    </div>
+  </div>
+  <!-- Loading state -->
+  <div class="ld" id="L"><div class="sp"></div><span id="lT">Adding border...</span></div>
+  <!-- Log -->
+  <div class="log" id="G"></div>
+  <!-- Done state -->
+  <div class="dn" id="D">
+    <h4 id="dT"></h4>
+    <p id="dM"></p>
+    <div class="btns" style="width:100%;margin-top:8px">
+      <button class="btn btn-p" onclick="PicLet.close()">Done</button>
+    </div>
+  </div>
+</div>
+<script>
+const { $, log, fetchJson, postJson } = PicLet;
+const pA = $('pA'), pI = $('pI');
+const wR = $('wR'), wV = $('wV');
+const cC = $('cC'), cT = $('cT'), cP = $('cP');
+
+let previewTimeout = null;
+let isSliding = false;
+let lastPreviewOpts = null;
+
+// Width slider
+wR.oninput = () => { wV.textContent = wR.value + 'px'; };
+wR.addEventListener('mousedown', () => { isSliding = true; });
+wR.addEventListener('mouseup', () => { isSliding = false; schedulePreview(); });
+wR.addEventListener('mouseleave', () => { if (isSliding) { isSliding = false; schedulePreview(); } });
+
+// Color picker
+cC.oninput = () => {
+  cT.value = cC.value;
+  cP.style.background = cC.value;
+  schedulePreview();
+};
+
+cT.oninput = () => {
+  const val = cT.value;
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    cC.value = val;
+    cP.style.background = val;
+    schedulePreview();
+  }
+};
+
+cT.onblur = () => {
+  schedulePreview();
+};
+
+cP.onclick = () => cC.click();
+
+// Preset colors
+document.querySelectorAll('.preset-color').forEach(el => {
+  el.onclick = () => {
+    const color = el.dataset.color;
+    cC.value = color;
+    cT.value = color;
+    cP.style.background = color;
+    schedulePreview();
+  };
+});
+
+// Get current options
+function getOptions() {
+  return {
+    width: +wR.value,
+    color: cT.value || '#ffffff'
+  };
+}
+
+// Check if options changed
+function optionsChanged() {
+  const current = JSON.stringify(getOptions());
+  if (current === lastPreviewOpts) return false;
+  lastPreviewOpts = current;
+  return true;
+}
+
+// Schedule preview
+function schedulePreview() {
+  if (isSliding) return;
+  if (previewTimeout) clearTimeout(previewTimeout);
+  previewTimeout = setTimeout(() => {
+    if (!isSliding && optionsChanged()) {
+      generatePreview();
+    }
+  }, 300);
+}
+
+// Generate preview
+async function generatePreview() {
+  pA.innerHTML = '<div class="mini-sp"></div>';
+  pI.textContent = '';
+
+  try {
+    const result = await postJson('/api/preview', getOptions());
+
+    if (result.success && result.imageData) {
+      const img = document.createElement('img');
+      img.src = result.imageData;
+      img.alt = 'Preview';
+      pA.innerHTML = '';
+      pA.appendChild(img);
+      pI.textContent = result.width && result.height ? `${result.width}×${result.height}` : '';
+    } else {
+      pA.innerHTML = '<span class="placeholder">' + (result.error || 'Preview failed') + '</span>';
+      pI.textContent = '';
+    }
+  } catch (e) {
+    pA.innerHTML = '<span class="placeholder">Preview error</span>';
+    pI.textContent = '';
+  }
+}
+
+// Load initial data
+fetchJson('/api/info').then(d => {
+  $('fn').textContent = d.fileName;
+  $('sz').textContent = d.width + '×' + d.height;
+  if (d.defaults) {
+    wR.value = d.defaults.width || 10;
+    wV.textContent = wR.value + 'px';
+    const color = d.defaults.color || '#ffffff';
+    cC.value = color;
+    cT.value = color;
+    cP.style.background = color;
+  }
+  setTimeout(generatePreview, 100);
+});
+
+// Apply
+async function apply() {
+  $('F').classList.add('hide');
+  $('L').classList.add('on');
+  $('G').classList.add('on');
+
+  try {
+    const result = await postJson('/api/process', getOptions());
+    if (result.logs) {
+      result.logs.forEach(l => log('G', l.type[0], l.message));
+    }
+
+    $('L').classList.remove('on');
+    $('D').classList.add('on', result.success ? 'ok' : 'err');
+    $('dT').textContent = result.success ? 'Done' : 'Failed';
+    $('dM').textContent = result.success ? result.output : result.error;
+  } catch (e) {
+    log('G', 'e', e.message);
+    $('L').classList.remove('on');
+    $('D').classList.add('on', 'err');
+    $('dT').textContent = 'Error';
+    $('dM').textContent = e.message;
+  }
+}
+</script>
+</body>
+</html>

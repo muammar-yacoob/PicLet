@@ -18,8 +18,10 @@ import {
 import {
 	checkImageMagick,
 	cleanup,
+	extractFirstFrame,
 	getBorderColor,
 	getDimensions,
+	isMultiFrame,
 	removeBackground,
 	removeBackgroundBorderOnly,
 	squarify,
@@ -385,19 +387,30 @@ async function generatePreview(
 ): Promise<{ success: boolean; imageData?: string; width?: number; height?: number; error?: string }> {
 	const tempDir = tmpdir();
 	const timestamp = Date.now();
+	const tempSource = join(tempDir, `piclet-preview-${timestamp}-src.png`);
 	const tempFile = join(tempDir, `piclet-preview-${timestamp}.png`);
 	const tempOutput = join(tempDir, `piclet-preview-${timestamp}-out.png`);
 
 	try {
+		// For GIFs, extract first frame only for fast preview
+		let previewInput = input;
+		if (isMultiFrame(input)) {
+			if (!(await extractFirstFrame(input, tempSource))) {
+				return { success: false, error: 'Failed to extract frame' };
+			}
+			previewInput = tempSource;
+		}
+
 		// Remove background
 		let bgRemoved = false;
 		if (options.preserveInner && borderColor) {
-			bgRemoved = await removeBackgroundBorderOnly(input, tempFile, borderColor, options.fuzz);
+			bgRemoved = await removeBackgroundBorderOnly(previewInput, tempFile, borderColor, options.fuzz);
 		}
 		if (!bgRemoved && borderColor) {
-			bgRemoved = await removeBackground(input, tempFile, borderColor, options.fuzz);
+			bgRemoved = await removeBackground(previewInput, tempFile, borderColor, options.fuzz);
 		}
 		if (!bgRemoved) {
+			cleanup(tempSource);
 			return { success: false, error: 'Background removal failed' };
 		}
 
@@ -428,7 +441,7 @@ async function generatePreview(
 		const dims = await getDimensions(currentFile);
 
 		// Cleanup
-		cleanup(currentFile, tempFile, tempOutput);
+		cleanup(currentFile, tempFile, tempOutput, tempSource);
 
 		return {
 			success: true,
@@ -437,7 +450,7 @@ async function generatePreview(
 			height: dims?.[1],
 		};
 	} catch (err) {
-		cleanup(tempFile, tempOutput);
+		cleanup(tempFile, tempOutput, tempSource);
 		return { success: false, error: (err as Error).message };
 	}
 }

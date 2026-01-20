@@ -1,15 +1,19 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { showBanner } from '../lib/banner.js';
+import { registerBorderCommand } from './commands/border.js';
 import { registerConfigCommand } from './commands/config.js';
+import { registerFilterCommand } from './commands/filter.js';
 import { registerHelpCommand } from './commands/help.js';
 import { registerIconpackCommand } from './commands/iconpack.js';
 import { registerInstallCommand } from './commands/install.js';
 import { registerMakeiconCommand } from './commands/makeicon.js';
 import { registerPicletCommand } from './commands/piclet.js';
+import { registerRecolorCommand } from './commands/recolor.js';
 import { registerRemoveBgCommand } from './commands/remove-bg.js';
 import { registerScaleCommand } from './commands/scale.js';
 import { registerStorepackCommand } from './commands/storepack.js';
+import { registerTransformCommand } from './commands/transform.js';
 import { registerUninstallCommand } from './commands/uninstall.js';
 
 export function showHelp(): void {
@@ -39,6 +43,18 @@ export function showHelp(): void {
 	);
 	console.log(
 		`    ${cmd('scale')} ${arg('<file>')}      Resize image with optional padding`,
+	);
+	console.log(
+		`    ${cmd('transform')} ${arg('<file>')}  Flip or rotate images`,
+	);
+	console.log(
+		`    ${cmd('filter')} ${arg('<file>')}     Apply color filters (grayscale, sepia)`,
+	);
+	console.log(
+		`    ${cmd('border')} ${arg('<file>')}     Add solid color border`,
+	);
+	console.log(
+		`    ${cmd('recolor')} ${arg('<file>')}    Replace one color with another`,
 	);
 	console.log(
 		`    ${cmd('iconpack')} ${arg('<file>')}   Generate icon sets for Web/Android/iOS`,
@@ -93,6 +109,10 @@ export function createProgram(): Command {
 	registerMakeiconCommand(program);
 	registerRemoveBgCommand(program);
 	registerScaleCommand(program);
+	registerTransformCommand(program);
+	registerFilterCommand(program);
+	registerBorderCommand(program);
+	registerRecolorCommand(program);
 	registerIconpackCommand(program);
 	registerStorepackCommand(program);
 	registerPicletCommand(program);

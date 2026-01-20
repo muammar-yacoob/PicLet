@@ -142,6 +142,69 @@ export async function registerAllTools(): Promise<RegistrationResult[]> {
 	return results;
 }
 
+/** Legacy tool names that may exist in older installations */
+const LEGACY_TOOL_NAMES = [
+	// Old direct menu items (various naming conventions)
+	'Scale Image',
+	'Resize Image',
+	'Eale Image', // Corrupted entry
+	'Remove Background',
+	'Remove BG',
+	'RemoveBG',
+	'Make Icon',
+	'MakeIcon',
+	'Icon Pack',
+	'IconPack',
+	'Store Pack',
+	'StorePack',
+	'PicLet - Scale',
+	'PicLet - Remove BG',
+	'PicLet - Make Icon',
+	'PicLet - Icon Pack',
+	'PicLet Scale',
+	'PicLet RemoveBG',
+	// Tool IDs that might have been used as menu names
+	'makeicon',
+	'remove-bg',
+	'removebg',
+	'rescale',
+	'scale',
+	'iconpack',
+	'storepack',
+	'transform',
+	'filter',
+	'border',
+	'recolor',
+];
+
+/** All extensions that might have legacy entries */
+const ALL_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.tiff', '.tif'];
+
+/** Clean up legacy registry entries from older installations */
+export async function cleanupLegacyEntries(): Promise<{ removed: string[]; failed: string[] }> {
+	const removed: string[] = [];
+	const failed: string[] = [];
+
+	for (const ext of ALL_IMAGE_EXTENSIONS) {
+		const shellBase = `HKCU\\Software\\Classes\\SystemFileAssociations\\${ext}\\shell`;
+
+		for (const legacyName of LEGACY_TOOL_NAMES) {
+			const keyPath = `${shellBase}\\${legacyName}`;
+
+			// Try to delete the command subkey first
+			await deleteRegistryKey(`${keyPath}\\command`);
+
+			// Then delete the main key
+			const success = await deleteRegistryKey(keyPath);
+			if (success) {
+				removed.push(`${ext} → ${legacyName}`);
+			}
+		}
+	}
+
+	return { removed, failed };
+}
+
 /** Unregister all tools */
 export async function unregisterAllTools(): Promise<RegistrationResult[]> {
 	const results: RegistrationResult[] = [];
@@ -215,6 +278,15 @@ function generateUninstallRegContent(): string {
 
 		// Delete the entire PicLet key (minus sign deletes)
 		lines.push(`[-${basePath}]`);
+		lines.push('');
+	}
+
+	// Also delete legacy entries from older installations
+	for (const ext of ALL_IMAGE_EXTENSIONS) {
+		for (const legacyName of LEGACY_TOOL_NAMES) {
+			const keyPath = `HKEY_CURRENT_USER\\Software\\Classes\\SystemFileAssociations\\${ext}\\shell\\${legacyName}`;
+			lines.push(`[-${keyPath}]`);
+		}
 		lines.push('');
 	}
 

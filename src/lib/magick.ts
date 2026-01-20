@@ -19,6 +19,18 @@ function getInputSelector(imagePath: string): string {
 }
 
 /**
+ * Get input path for preview (first frame only for GIFs and ICOs)
+ * This prevents slow processing of all animation frames during preview
+ */
+function getPreviewInputSelector(imagePath: string): string {
+	const lowerPath = imagePath.toLowerCase();
+	if (lowerPath.endsWith('.ico') || lowerPath.endsWith('.gif')) {
+		return `"${imagePath}[0]"`;
+	}
+	return `"${imagePath}"`;
+}
+
+/**
  * Check if file is an animated GIF
  */
 function isGif(imagePath: string): boolean {
@@ -55,12 +67,13 @@ export async function checkImageMagick(): Promise<boolean> {
 /**
  * Get image dimensions
  * Returns [width, height] or null on error
+ * Uses first frame only for multi-frame formats (GIF, ICO)
  */
 export async function getDimensions(
 	imagePath: string,
 ): Promise<[number, number] | null> {
 	try {
-		const input = getInputSelector(imagePath);
+		const input = getPreviewInputSelector(imagePath);
 		const { stdout } = await execAsync(
 			`convert ${input} -ping -format "%w %h" info:`,
 		);
@@ -74,12 +87,13 @@ export async function getDimensions(
 
 /**
  * Get border color (samples top-left pixel)
+ * Uses first frame only for multi-frame formats (GIF, ICO)
  */
 export async function getBorderColor(
 	imagePath: string,
 ): Promise<string | null> {
 	try {
-		const input = getInputSelector(imagePath);
+		const input = getPreviewInputSelector(imagePath);
 		const { stdout } = await execAsync(
 			`convert ${input} -format "%[pixel:u.p{0,0}]" info:`,
 		);
@@ -327,5 +341,248 @@ export function cleanup(...files: string[]): void {
 		} catch {
 			// Ignore cleanup errors
 		}
+	}
+}
+
+/**
+ * Extract first frame from GIF/ICO for fast preview
+ * Returns the input path if not a multi-frame format
+ */
+export async function extractFirstFrame(
+	inputPath: string,
+	outputPath: string,
+): Promise<boolean> {
+	const lowerPath = inputPath.toLowerCase();
+	if (!lowerPath.endsWith('.gif') && !lowerPath.endsWith('.ico')) {
+		// Not a multi-frame format, just copy
+		try {
+			copyFileSync(inputPath, outputPath);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	try {
+		// Extract first frame only - much faster than processing all frames
+		await execAsync(`convert "${inputPath}[0]" "${outputPath}"`);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Check if file is a multi-frame format (GIF or ICO)
+ */
+export function isMultiFrame(imagePath: string): boolean {
+	const lowerPath = imagePath.toLowerCase();
+	return lowerPath.endsWith('.gif') || lowerPath.endsWith('.ico');
+}
+
+/**
+ * Flip image horizontally (mirror)
+ * Preserves animation for GIF files
+ */
+export async function flipHorizontal(
+	inputPath: string,
+	outputPath: string,
+): Promise<boolean> {
+	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(
+			`convert "${inputPath}" ${coalesce}-flop${gifSuffix} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Flip image vertically
+ * Preserves animation for GIF files
+ */
+export async function flipVertical(
+	inputPath: string,
+	outputPath: string,
+): Promise<boolean> {
+	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(
+			`convert "${inputPath}" ${coalesce}-flip${gifSuffix} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Rotate image by specified degrees
+ * Preserves animation for GIF files
+ */
+export async function rotate(
+	inputPath: string,
+	outputPath: string,
+	degrees: number,
+): Promise<boolean> {
+	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(
+			`convert "${inputPath}" ${coalesce}-rotate ${degrees} -background none${gifSuffix} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Apply grayscale filter
+ * Preserves animation for GIF files
+ */
+export async function filterGrayscale(
+	inputPath: string,
+	outputPath: string,
+): Promise<boolean> {
+	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(
+			`convert "${inputPath}" ${coalesce}-colorspace Gray${gifSuffix} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Apply sepia tone filter
+ * Preserves animation for GIF files
+ */
+export async function filterSepia(
+	inputPath: string,
+	outputPath: string,
+	intensity = 80,
+): Promise<boolean> {
+	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(
+			`convert "${inputPath}" ${coalesce}-sepia-tone ${intensity}%${gifSuffix} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Invert image colors (negative)
+ * Preserves animation for GIF files
+ */
+export async function filterInvert(
+	inputPath: string,
+	outputPath: string,
+): Promise<boolean> {
+	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(
+			`convert "${inputPath}" ${coalesce}-negate${gifSuffix} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Apply vintage filter (desaturate + warm tint)
+ * Preserves animation for GIF files
+ */
+export async function filterVintage(
+	inputPath: string,
+	outputPath: string,
+): Promise<boolean> {
+	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(
+			`convert "${inputPath}" ${coalesce}-modulate 100,70,100 -fill "#704214" -colorize 15%${gifSuffix} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Increase saturation (vivid colors)
+ * Preserves animation for GIF files
+ */
+export async function filterVivid(
+	inputPath: string,
+	outputPath: string,
+): Promise<boolean> {
+	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(
+			`convert "${inputPath}" ${coalesce}-modulate 100,130,100${gifSuffix} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Add solid color border to image
+ * Preserves animation for GIF files
+ */
+export async function addBorder(
+	inputPath: string,
+	outputPath: string,
+	width: number,
+	color: string,
+): Promise<boolean> {
+	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(
+			`convert "${inputPath}" ${coalesce}-bordercolor "${color}" -border ${width}${gifSuffix} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Replace one color with another
+ * Preserves animation for GIF files
+ */
+export async function replaceColor(
+	inputPath: string,
+	outputPath: string,
+	fromColor: string,
+	toColor: string,
+	fuzz: number,
+): Promise<boolean> {
+	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(
+			`convert "${inputPath}" ${coalesce}-fuzz ${fuzz}% -fill "${toColor}" -opaque "${fromColor}"${gifSuffix} "${outputPath}"`,
+		);
+		return true;
+	} catch {
+		return false;
 	}
 }

@@ -18,7 +18,9 @@ import {
 import {
 	checkImageMagick,
 	cleanup,
+	extractFirstFrame,
 	getDimensions,
+	isMultiFrame,
 	resize,
 	scaleWithPadding,
 } from '../lib/magick.js';
@@ -249,9 +251,19 @@ async function generatePreview(
 ): Promise<{ success: boolean; imageData?: string; width?: number; height?: number; error?: string }> {
 	const tempDir = tmpdir();
 	const timestamp = Date.now();
+	const tempSource = join(tempDir, `piclet-preview-${timestamp}-src.png`);
 	const tempOutput = join(tempDir, `piclet-preview-${timestamp}.png`);
 
 	try {
+		// For GIFs, extract first frame only for fast preview
+		let previewInput = input;
+		if (isMultiFrame(input)) {
+			if (!(await extractFirstFrame(input, tempSource))) {
+				return { success: false, error: 'Failed to extract frame' };
+			}
+			previewInput = tempSource;
+		}
+
 		let scaled = false;
 		let targetW = options.width;
 		let targetH = options.height;
@@ -260,12 +272,13 @@ async function generatePreview(
 			const maxDim = Math.max(targetW, targetH);
 			targetW = maxDim;
 			targetH = maxDim;
-			scaled = await scaleWithPadding(input, tempOutput, targetW, targetH);
+			scaled = await scaleWithPadding(previewInput, tempOutput, targetW, targetH);
 		} else {
-			scaled = await resize(input, tempOutput, targetW, targetH);
+			scaled = await resize(previewInput, tempOutput, targetW, targetH);
 		}
 
 		if (!scaled || !existsSync(tempOutput)) {
+			cleanup(tempSource);
 			return { success: false, error: 'Scaling failed' };
 		}
 
@@ -274,7 +287,7 @@ async function generatePreview(
 		const imageData = `data:image/png;base64,${base64}`;
 
 		const dims = await getDimensions(tempOutput);
-		cleanup(tempOutput);
+		cleanup(tempSource, tempOutput);
 
 		return {
 			success: true,
@@ -283,7 +296,7 @@ async function generatePreview(
 			height: dims?.[1],
 		};
 	} catch (err) {
-		cleanup(tempOutput);
+		cleanup(tempSource, tempOutput);
 		return { success: false, error: (err as Error).message };
 	}
 }

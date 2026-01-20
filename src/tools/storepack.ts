@@ -9,6 +9,7 @@ import {
 	resize,
 	scaleFillCrop,
 	scaleWithPadding,
+	squarify,
 } from '../lib/magick.js';
 import { getFileInfo, normalizePath } from '../lib/paths.js';
 import { loadPresets, type Preset } from '../lib/presets.js';

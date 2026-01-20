@@ -3,7 +3,7 @@ import type { Command } from 'commander';
 import { showBanner } from '../../lib/banner.js';
 import { wslToWindows } from '../../lib/paths.js';
 import { isWSL, isWSLInteropEnabled } from '../../lib/registry.js';
-import { generateUninstallRegFile, unregisterAllTools } from '../registry.js';
+import { cleanupLegacyEntries, generateUninstallRegFile, unregisterAllTools } from '../registry.js';
 
 export function registerUninstallCommand(program: Command): void {
 	program
@@ -40,6 +40,19 @@ export function registerUninstallCommand(program: Command): void {
 				return;
 			}
 
+			// First, clean up legacy entries from older installations
+			console.log(chalk.dim('Cleaning up legacy entries...\n'));
+			const legacyResult = await cleanupLegacyEntries();
+
+			if (legacyResult.removed.length > 0) {
+				console.log(chalk.yellow(`Removed ${legacyResult.removed.length} legacy entries:`));
+				for (const entry of legacyResult.removed) {
+					console.log(`  ${chalk.green('✓')} ${entry}`);
+				}
+				console.log();
+			}
+
+			// Then unregister current tools
 			const results = await unregisterAllTools();
 			const removedCount = results.filter((r) => r.success).length;
 
@@ -55,10 +68,11 @@ export function registerUninstallCommand(program: Command): void {
 				}
 			}
 
+			const totalRemoved = removedCount + legacyResult.removed.length;
 			console.log();
 			console.log(
 				chalk.green(
-					`✓ Cleanup complete. Removed ${removedCount}/${results.length} entries.`,
+					`✓ Cleanup complete. Removed ${totalRemoved} entries total.`,
 				),
 			);
 			console.log(chalk.dim('\nThanks for using PicLet!\n'));
