@@ -6,8 +6,9 @@ import { promisify } from 'node:util';
 const execAsync = promisify(exec);
 
 /**
- * Get input path with frame selector for multi-frame formats (ICO, GIF)
+ * Get input path with frame selector for multi-frame formats (ICO)
  * ICO files contain multiple resolutions - [0] selects the largest
+ * Used for operations that need a single frame (icon generation)
  */
 function getInputSelector(imagePath: string): string {
 	const lowerPath = imagePath.toLowerCase();
@@ -15,6 +16,28 @@ function getInputSelector(imagePath: string): string {
 		return `"${imagePath}[0]"`;
 	}
 	return `"${imagePath}"`;
+}
+
+/**
+ * Check if file is an animated GIF
+ */
+function isGif(imagePath: string): boolean {
+	return imagePath.toLowerCase().endsWith('.gif');
+}
+
+/**
+ * Get GIF-optimized output command suffix
+ * Uses -layers Optimize to properly save animated GIFs
+ */
+function getGifOutputSuffix(outputPath: string): string {
+	return isGif(outputPath) ? ' -layers Optimize' : '';
+}
+
+/**
+ * Get coalesce prefix for GIF input (processes all frames properly)
+ */
+function getCoalescePrefix(inputPath: string): string {
+	return isGif(inputPath) ? '-coalesce ' : '';
 }
 
 /**
@@ -68,14 +91,16 @@ export async function getBorderColor(
 
 /**
  * Trim transparent/whitespace edges from image
+ * Preserves animation for GIF files
  */
 export async function trim(
 	inputPath: string,
 	outputPath: string,
 ): Promise<boolean> {
 	try {
-		const input = getInputSelector(inputPath);
-		await execAsync(`convert ${input} -trim +repage "${outputPath}"`);
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
+		await execAsync(`convert "${inputPath}" ${coalesce}-trim +repage${gifSuffix} "${outputPath}"`);
 		return true;
 	} catch {
 		return false;
@@ -84,6 +109,7 @@ export async function trim(
 
 /**
  * Make image square by adding transparent padding
+ * Preserves animation for GIF files
  */
 export async function squarify(
 	inputPath: string,
@@ -103,11 +129,12 @@ export async function squarify(
 	}
 
 	const size = Math.max(width, height);
-	const input = getInputSelector(inputPath);
+	const coalesce = getCoalescePrefix(inputPath);
+	const gifSuffix = getGifOutputSuffix(outputPath);
 
 	try {
 		await execAsync(
-			`convert ${input} -background none -gravity center -extent ${size}x${size} "${outputPath}"`,
+			`convert "${inputPath}" ${coalesce}-background none -gravity center -extent ${size}x${size}${gifSuffix} "${outputPath}"`,
 		);
 		return true;
 	} catch {
@@ -135,6 +162,7 @@ export async function scaleToSize(
 
 /**
  * Scale image with custom dimensions and padding
+ * Preserves animation for GIF files
  */
 export async function scaleWithPadding(
 	inputPath: string,
@@ -143,8 +171,10 @@ export async function scaleWithPadding(
 	height: number,
 ): Promise<boolean> {
 	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
 		await execAsync(
-			`convert "${inputPath}" -resize ${width}x${height} -background none -gravity center -extent ${width}x${height} "${outputPath}"`,
+			`convert "${inputPath}" ${coalesce}-resize ${width}x${height} -background none -gravity center -extent ${width}x${height}${gifSuffix} "${outputPath}"`,
 		);
 		return true;
 	} catch {
@@ -154,6 +184,7 @@ export async function scaleWithPadding(
 
 /**
  * Scale image to exact dimensions (may distort)
+ * Preserves animation for GIF files
  */
 export async function resize(
 	inputPath: string,
@@ -162,8 +193,10 @@ export async function resize(
 	height: number,
 ): Promise<boolean> {
 	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
 		await execAsync(
-			`convert "${inputPath}" -resize ${width}x${height}! "${outputPath}"`,
+			`convert "${inputPath}" ${coalesce}-resize ${width}x${height}!${gifSuffix} "${outputPath}"`,
 		);
 		return true;
 	} catch {
@@ -173,6 +206,7 @@ export async function resize(
 
 /**
  * Scale image to fill area and crop to exact size (cover mode)
+ * Preserves animation for GIF files
  */
 export async function scaleFillCrop(
 	inputPath: string,
@@ -181,8 +215,10 @@ export async function scaleFillCrop(
 	height: number,
 ): Promise<boolean> {
 	try {
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
 		await execAsync(
-			`convert "${inputPath}" -resize ${width}x${height}^ -background none -gravity center -extent ${width}x${height} "${outputPath}"`,
+			`convert "${inputPath}" ${coalesce}-resize ${width}x${height}^ -background none -gravity center -extent ${width}x${height}${gifSuffix} "${outputPath}"`,
 		);
 		return true;
 	} catch {
@@ -192,6 +228,7 @@ export async function scaleFillCrop(
 
 /**
  * Remove background color from image
+ * Preserves animation for GIF files
  */
 export async function removeBackground(
 	inputPath: string,
@@ -200,9 +237,10 @@ export async function removeBackground(
 	fuzz: number,
 ): Promise<boolean> {
 	try {
-		const input = getInputSelector(inputPath);
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
 		await execAsync(
-			`convert ${input} -fuzz ${fuzz}% -transparent "${color}" "${outputPath}"`,
+			`convert "${inputPath}" ${coalesce}-fuzz ${fuzz}% -transparent "${color}"${gifSuffix} "${outputPath}"`,
 		);
 		return true;
 	} catch {
@@ -212,6 +250,7 @@ export async function removeBackground(
 
 /**
  * Remove background using flood-fill from edges only
+ * Preserves animation for GIF files
  */
 export async function removeBackgroundBorderOnly(
 	inputPath: string,
@@ -220,9 +259,10 @@ export async function removeBackgroundBorderOnly(
 	fuzz: number,
 ): Promise<boolean> {
 	try {
-		const input = getInputSelector(inputPath);
+		const coalesce = getCoalescePrefix(inputPath);
+		const gifSuffix = getGifOutputSuffix(outputPath);
 		await execAsync(
-			`convert ${input} -bordercolor "${color}" -border 1x1 -fill none -fuzz ${fuzz}% -draw "matte 0,0 floodfill" -shave 1x1 "${outputPath}"`,
+			`convert "${inputPath}" ${coalesce}-bordercolor "${color}" -border 1x1 -fill none -fuzz ${fuzz}% -draw "matte 0,0 floodfill" -shave 1x1${gifSuffix} "${outputPath}"`,
 		);
 		return true;
 	} catch {

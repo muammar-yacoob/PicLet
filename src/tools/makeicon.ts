@@ -304,5 +304,5 @@ export const config = {
 	id: 'makeicon',
 	name: 'Make Icon',
 	icon: 'makeicon.ico',
-	extensions: ['.png'],
+	extensions: ['.png', '.gif'],
 };

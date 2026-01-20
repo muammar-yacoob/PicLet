@@ -50,8 +50,10 @@ async function processImage(
 	options: ProcessOptions,
 ): Promise<boolean> {
 	const fileInfo = getFileInfo(input);
-	const output = `${fileInfo.dirname}/${fileInfo.filename}_nobg.png`;
-	const tempFile = `${fileInfo.dirname}/${fileInfo.filename}_temp.png`;
+	// Preserve original extension for GIF files, use PNG for others
+	const outputExt = fileInfo.extension.toLowerCase() === '.gif' ? '.gif' : '.png';
+	const output = `${fileInfo.dirname}/${fileInfo.filename}_nobg${outputExt}`;
+	const tempFile = `${fileInfo.dirname}/${fileInfo.filename}_temp${outputExt}`;
 
 	wip('Removing background...');
 
@@ -96,7 +98,7 @@ async function processImage(
 	// Make square if requested
 	if (options.makeSquare) {
 		wip('Making square...');
-		const tempSquare = `${fileInfo.dirname}/${fileInfo.filename}_square_temp.png`;
+		const tempSquare = `${fileInfo.dirname}/${fileInfo.filename}_square_temp${outputExt}`;
 		if (await squarify(output, tempSquare)) {
 			renameSync(tempSquare, output);
 			wipDone(true, 'Made square');
@@ -314,8 +316,10 @@ async function processImageSilent(
 	logs: Array<{ type: string; message: string }>,
 ): Promise<boolean> {
 	const fileInfo = getFileInfo(input);
-	const output = `${fileInfo.dirname}/${fileInfo.filename}_nobg.png`;
-	const tempFile = `${fileInfo.dirname}/${fileInfo.filename}_temp.png`;
+	// Preserve original extension for GIF files, use PNG for others
+	const outputExt = fileInfo.extension.toLowerCase() === '.gif' ? '.gif' : '.png';
+	const output = `${fileInfo.dirname}/${fileInfo.filename}_nobg${outputExt}`;
+	const tempFile = `${fileInfo.dirname}/${fileInfo.filename}_temp${outputExt}`;
 
 	let bgRemoved = false;
 	if (options.preserveInner && borderColor) {
@@ -358,7 +362,7 @@ async function processImageSilent(
 	// Make square if requested
 	if (options.makeSquare) {
 		logs.push({ type: 'info', message: 'Making square...' });
-		const tempSquare = `${fileInfo.dirname}/${fileInfo.filename}_square_temp.png`;
+		const tempSquare = `${fileInfo.dirname}/${fileInfo.filename}_square_temp${outputExt}`;
 		if (await squarify(output, tempSquare)) {
 			renameSync(tempSquare, output);
 			logs.push({ type: 'success', message: 'Made square' });
@@ -442,5 +446,5 @@ export const config = {
 	id: 'remove-bg',
 	name: 'Remove Background',
 	icon: 'removebg.ico',
-	extensions: ['.png', '.jpg', '.jpeg', '.ico'],
+	extensions: ['.png', '.jpg', '.jpeg', '.ico', '.gif'],
 };

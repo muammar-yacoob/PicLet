@@ -262,5 +262,5 @@ export const config = {
 	id: 'storepack',
 	name: 'Store Pack',
 	icon: 'storepack.ico',
-	extensions: ['.png', '.jpg', '.jpeg'],
+	extensions: ['.png', '.jpg', '.jpeg', '.gif'],
 };

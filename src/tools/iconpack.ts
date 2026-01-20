@@ -492,5 +492,5 @@ export const config = {
 	id: 'iconpack',
 	name: 'Icon Pack',
 	icon: 'iconpack.ico',
-	extensions: ['.png', '.jpg', '.jpeg'],
+	extensions: ['.png', '.jpg', '.jpeg', '.gif'],
 };
