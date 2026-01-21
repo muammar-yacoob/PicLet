@@ -24,6 +24,13 @@
     .preview-zoom button{width:22px;height:22px;padding:0;font-size:14px;background:var(--bg2);border:1px solid var(--brd);border-radius:4px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;justify-content:center}
     .preview-zoom button:hover{border-color:var(--acc);color:var(--acc)}
     .preview-zoom span{font-size:10px;color:var(--txt3);min-width:40px;text-align:center}
+    .preview-zoom .zoom-sep{width:1px;height:16px;background:var(--brd);margin:0 6px;min-width:1px}
+    .play-controls{display:none;align-items:center;gap:4px}
+    .play-controls.show{display:flex}
+    .play-controls button{width:26px;font-size:10px}
+    .play-controls button.playing{background:var(--acc);border-color:var(--acc);color:#000}
+    .play-controls select{padding:3px 4px;font-size:10px;background:var(--bg2);color:var(--txt2);border:1px solid var(--brd);border-radius:4px;cursor:pointer}
+    .play-controls select:hover{border-color:var(--acc)}
     .load-btn{width:100%;padding:8px;font-size:11px;background:var(--bg2);border:1px dashed var(--brd);border-radius:6px;color:var(--txt3);cursor:pointer;transition:all .2s}
     .load-btn:hover{border-color:var(--acc);color:var(--acc)}
 
@@ -134,6 +141,56 @@
     .modal-btn.danger:hover{background:#a33}
     .modal-btn.secondary{background:var(--bg3);color:var(--txt);border:1px solid var(--brd)}
     .modal-btn.secondary:hover{border-color:var(--acc)}
+
+    /* GIF Frame Strip - Left vertical panel */
+    .frame-panel{display:none;width:80px;min-width:60px;flex-shrink:0;flex-direction:column;gap:6px;background:var(--bg2);border-radius:6px;padding:8px;overflow:hidden}
+    .frame-panel.show{display:flex}
+    .frame-panel-header{font-size:9px;color:var(--txt3);text-align:center;padding-bottom:6px;border-bottom:1px solid var(--brd)}
+    .frame-panel-header b{color:var(--acc2);display:block;font-size:11px}
+    .frame-strip-scroll{display:flex;flex-direction:column;gap:4px;overflow-y:auto;flex:1;padding:4px 0;scrollbar-width:thin}
+    .frame-strip-scroll::-webkit-scrollbar{width:4px}
+    .frame-strip-scroll::-webkit-scrollbar-track{background:var(--bg3);border-radius:2px}
+    .frame-strip-scroll::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+    .frame-strip-scroll::-webkit-scrollbar-thumb:hover{background:var(--txt3)}
+    .frame-thumb{flex-shrink:0;width:100%;aspect-ratio:1;border:2px solid var(--brd);border-radius:4px;overflow:hidden;cursor:pointer;position:relative;background:repeating-conic-gradient(#1a1a1d 0% 25%, #222 0% 50%) 50%/8px 8px}
+    .frame-thumb:hover{border-color:var(--txt3)}
+    .frame-thumb.selected{border-color:var(--acc)}
+    .frame-thumb img{width:100%;height:100%;object-fit:contain}
+    .frame-thumb .frame-num{position:absolute;bottom:1px;right:2px;font-size:8px;color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+    .frame-thumb.processing::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center}
+    .frame-thumb.processing::before{content:'';position:absolute;top:50%;left:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border:2px solid var(--bg3);border-top-color:var(--acc);border-radius:50%;animation:s .5s linear infinite;z-index:1}
+    .gif-export-btn{display:none;width:100%;padding:8px 4px;font-size:10px;background:var(--acc);border:none;border-radius:4px;color:#000;cursor:pointer;font-weight:600;margin-top:6px}
+    .gif-export-btn.show{display:block}
+    .gif-export-btn:hover{background:var(--acc2)}
+
+    /* Export modal */
+    .export-modal{background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:16px 20px;min-width:280px;max-width:320px}
+    .export-modal h3{font-size:14px;color:var(--txt);margin:0 0 12px;font-weight:600}
+    .export-options{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+    .export-opt{display:flex;align-items:flex-start;gap:10px;padding:10px;background:var(--bg3);border:1px solid var(--brd);border-radius:6px;cursor:pointer;transition:all .2s}
+    .export-opt:hover{border-color:var(--txt3)}
+    .export-opt.selected{border-color:var(--acc);background:rgba(234,179,8,0.1)}
+    .export-opt input{display:none}
+    .export-opt .radio{width:16px;height:16px;border:2px solid var(--brd);border-radius:50%;flex-shrink:0;margin-top:2px;position:relative}
+    .export-opt.selected .radio{border-color:var(--acc)}
+    .export-opt.selected .radio::after{content:'';position:absolute;top:3px;left:3px;width:6px;height:6px;background:var(--acc);border-radius:50%}
+    .export-opt-content{flex:1;min-width:0}
+    .export-opt-title{font-size:12px;color:var(--txt);font-weight:500;margin-bottom:2px}
+    .export-opt-desc{font-size:10px;color:var(--txt3)}
+    .export-opt-thumb{width:40px;height:40px;border-radius:4px;overflow:hidden;flex-shrink:0;background:repeating-conic-gradient(#1a1a1d 0% 25%, #222 0% 50%) 50%/8px 8px}
+    .export-opt-thumb img{width:100%;height:100%;object-fit:contain}
+    .export-modal-btns{display:flex;gap:8px;justify-content:flex-end}
+    .export-modal-btns button{padding:8px 16px;font-size:11px;border-radius:4px;cursor:pointer;font-weight:500}
+    .export-modal-btns .cancel{background:var(--bg3);border:1px solid var(--brd);color:var(--txt)}
+    .export-modal-btns .cancel:hover{border-color:var(--acc)}
+    .export-modal-btns .confirm{background:var(--acc);border:none;color:#000}
+    .export-modal-btns .confirm:hover{background:var(--acc2)}
+    /* Left divider for frame panel */
+    .divider-left{display:none;width:6px;cursor:col-resize;background:transparent;align-items:center;justify-content:center;flex-shrink:0;margin:0 -2px}
+    .divider-left.show{display:flex}
+    .divider-left:hover,.divider-left.dragging{background:var(--bg3)}
+    .divider-left::after{content:'';width:2px;height:40px;background:var(--brd);border-radius:1px;transition:background .2s}
+    .divider-left:hover::after,.divider-left.dragging::after{background:var(--acc)}
   </style>
 </head>
 <body>
@@ -163,6 +220,19 @@
 
   <!-- Main content -->
   <div class="main" id="M">
+    <!-- GIF Frame Panel (left) -->
+    <div class="frame-panel" id="framePanel">
+      <div class="frame-panel-header">
+        <b id="frameCount">0</b>
+        <span>Frames</span>
+      </div>
+      <div class="frame-strip-scroll" id="frameScroll"></div>
+      <button class="gif-export-btn" id="gifExportBtn" onclick="showExportModal()">Export</button>
+    </div>
+
+    <!-- Left divider (for frame panel) -->
+    <div class="divider-left" id="dividerLeft"></div>
+
     <!-- Preview panel -->
     <div class="preview-panel">
       <div class="preview-area" id="pA">
@@ -173,7 +243,17 @@
         <button onclick="zoomOut()" title="Zoom out">−</button>
         <span id="zoomLevel">100%</span>
         <button onclick="zoomIn()" title="Zoom in">+</button>
-        <button onclick="zoomReset()" title="Reset zoom" style="font-size:10px;width:28px">Fit</button>
+        <button id="fitBtn" onclick="zoomReset()" title="Reset zoom" style="font-size:10px;width:28px;display:none">Fit</button>
+        <span class="zoom-sep"></span>
+        <div class="play-controls" id="playControls">
+          <button id="playBtn" onclick="togglePlayback()" title="Play/Pause">▶</button>
+          <select id="playSpeed" onchange="setPlaySpeed(this.value)" title="Playback speed">
+            <option value="200">0.5×</option>
+            <option value="100" selected>1×</option>
+            <option value="50">2×</option>
+            <option value="33">3×</option>
+          </select>
+        </div>
       </div>
       <button class="load-btn" onclick="loadNewImage()">Load Different Image...</button>
       <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.gif,.bmp,.ico" style="display:none" onchange="handleFileSelect(event)">
@@ -293,7 +373,7 @@
 
   <!-- Bottom bar -->
   <div class="bottom-bar" id="B">
-    <button class="btn btn-g" onclick="PicLet.close()">Close</button>
+    <button class="btn btn-g" onclick="tryClose()">Close</button>
     <button class="btn apply-btn" id="applyBtn" onclick="apply()" disabled>Apply</button>
   </div>
 
@@ -307,6 +387,7 @@
     <p id="dM"></p>
     <div class="btns" style="width:100%;margin-top:8px">
       <button class="btn btn-g" onclick="reset()">Back</button>
+      <button class="btn" onclick="openOutputFolder()" id="openFolderBtn" style="display:none">Open Folder</button>
       <button class="btn btn-p" onclick="PicLet.close()">Done</button>
     </div>
   </div>
@@ -318,6 +399,44 @@
     <div class="modal-msg" id="modalMsg"></div>
     <div class="modal-btns" id="modalBtns">
       <button class="modal-btn" onclick="hideModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="modal-overlay" id="exportModal" onclick="hideExportModal(event)">
+  <div class="export-modal" onclick="event.stopPropagation()">
+    <h3>Export GIF</h3>
+    <div class="export-options">
+      <label class="export-opt selected" onclick="selectExportOption('frame')">
+        <input type="radio" name="exportType" value="frame" checked>
+        <span class="radio"></span>
+        <div class="export-opt-content">
+          <div class="export-opt-title">Current Frame</div>
+          <div class="export-opt-desc">Save frame <span id="exportFrameNum">1</span> as PNG</div>
+        </div>
+        <div class="export-opt-thumb" id="exportThumb"></div>
+      </label>
+      <label class="export-opt" onclick="selectExportOption('all-frames')">
+        <input type="radio" name="exportType" value="all-frames">
+        <span class="radio"></span>
+        <div class="export-opt-content">
+          <div class="export-opt-title">All Frames (ZIP)</div>
+          <div class="export-opt-desc">Save all <span id="exportTotalFrames">0</span> frames as PNG in a ZIP file</div>
+        </div>
+      </label>
+      <label class="export-opt" onclick="selectExportOption('gif')">
+        <input type="radio" name="exportType" value="gif">
+        <span class="radio"></span>
+        <div class="export-opt-content">
+          <div class="export-opt-title">Processed GIF</div>
+          <div class="export-opt-desc">Save as animated GIF with all effects applied</div>
+        </div>
+      </label>
+    </div>
+    <div class="export-modal-btns">
+      <button class="cancel" onclick="hideExportModal()">Cancel</button>
+      <button class="confirm" onclick="confirmExport()">Export</button>
     </div>
   </div>
 </div>
@@ -379,6 +498,8 @@ function updateZoom() {
     }
   }
   $('zoomLevel').textContent = Math.round(zoomScale * 100) + '%';
+  // Show Fit button only when zoomed in or out
+  $('fitBtn').style.display = zoomScale !== 1 ? '' : 'none';
 }
 
 function zoomIn() {
@@ -440,8 +561,16 @@ document.addEventListener('mouseup', () => {
 let imageInfo = {};
 let previewTimeout = null;
 let activeTools = new Set();
+let lastOutputSuccess = false;
+let hasChanges = false;
 let presets = [];
 let currentDimensions = []; // Editable dimensions for storepack
+
+// GIF frame state
+let isGifFile = false;
+let gifFrames = []; // Array of { index, thumbnail (base64) }
+let selectedFrameIndex = 0;
+let framePreviewCache = {}; // Cache processed frame previews
 
 // Toggle tool active state
 function toggleTool(tool) {
@@ -454,6 +583,7 @@ function toggleTool(tool) {
   } else {
     activeTools.add(tool);
     el.classList.add('active');
+    hasChanges = true;
   }
 
   updateApplyButton();
@@ -567,15 +697,32 @@ function schedulePreview() {
 
 // Show original image
 async function showOriginal() {
+  // For GIFs with frames loaded, show selected frame directly
+  if (isGifFile && gifFrames.length > 0 && gifFrames[selectedFrameIndex]) {
+    const frame = gifFrames[selectedFrameIndex];
+    pA.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = frame.thumbnail;
+    pA.appendChild(img);
+    pI.textContent = `${imageInfo.width} × ${imageInfo.height} (Frame ${selectedFrameIndex + 1} of ${imageInfo.frameCount})`;
+    updateZoom();
+    return;
+  }
+
   pA.innerHTML = '<div class="mini-sp"></div>';
   try {
-    const result = await postJson('/api/preview', { tools: [], original: true });
+    const opts = { tools: [], original: true };
+    if (isGifFile) {
+      opts.frameIndex = selectedFrameIndex;
+    }
+    const result = await postJson('/api/preview', opts);
     if (result.success && result.imageData) {
       const img = document.createElement('img');
       img.src = result.imageData;
       pA.innerHTML = '';
       pA.appendChild(img);
-      pI.textContent = `${imageInfo.width} × ${imageInfo.height}`;
+      const frameInfo = isGifFile && imageInfo.frameCount > 1 ? ` (Frame ${selectedFrameIndex + 1} of ${imageInfo.frameCount})` : '';
+      pI.textContent = `${imageInfo.width} × ${imageInfo.height}${frameInfo}`;
       updateZoom(); // Apply current zoom
     }
   } catch (e) {
@@ -587,6 +734,10 @@ async function showOriginal() {
 async function generatePreview() {
   if (activeTools.size === 0) {
     showOriginal();
+    // Reset frame thumbnails to original if GIF
+    if (isGifFile && gifFrames.length > 0) {
+      updateFramePreviews();
+    }
     return;
   }
 
@@ -603,18 +754,30 @@ async function generatePreview() {
   pI.textContent = '';
 
   try {
-    const result = await postJson('/api/preview', getOptions());
+    // For GIFs, preview the selected frame
+    const opts = getOptions();
+    if (isGifFile) {
+      opts.frameIndex = selectedFrameIndex;
+    }
+
+    const result = await postJson('/api/preview', opts);
     if (result.success && result.imageData) {
       const img = document.createElement('img');
       img.src = result.imageData;
       pA.innerHTML = '';
       pA.appendChild(img);
       if (result.width && result.height) {
-        pI.textContent = `${result.width} × ${result.height}`;
+        const frameInfo = isGifFile ? ` (Frame ${selectedFrameIndex + 1})` : '';
+        pI.textContent = `${result.width} × ${result.height}${frameInfo}`;
       }
       updateZoom(); // Apply current zoom
     } else {
       pA.innerHTML = '<span class="placeholder">' + (result.error || 'Preview failed') + '</span>';
+    }
+
+    // Update all frame thumbnails for GIFs (in background)
+    if (isGifFile && gifFrames.length > 0) {
+      updateFramePreviews();
     }
   } catch (e) {
     pA.innerHTML = '<span class="placeholder">Preview error</span>';
@@ -707,6 +870,14 @@ function updateImageInfo() {
   const ext = '.' + imageInfo.fileName.split('.').pop().toLowerCase();
   filterTools(ext);
 
+  // Check if GIF
+  isGifFile = ext === '.gif';
+  if (isGifFile && imageInfo.frameCount > 1) {
+    showFrameStrip();
+  } else {
+    hideFrameStrip();
+  }
+
   // Calculate aspect ratio
   aspectRatio = imageInfo.width / imageInfo.height;
 
@@ -717,6 +888,310 @@ function updateImageInfo() {
   $('sc-h').value = imageInfo.height;
   $('sc-wV').textContent = imageInfo.width + 'px';
   $('sc-hV').textContent = imageInfo.height + 'px';
+}
+
+// ── GIF Frame Strip Functions ──
+
+// Animation playback state
+let isPlaying = false;
+let playInterval = null;
+let playSpeed = 100; // ms per frame
+
+function showFrameStrip() {
+  $('framePanel').classList.add('show');
+  $('dividerLeft').classList.add('show');
+  $('playControls').classList.add('show');
+  $('gifExportBtn').classList.add('show');
+  $('frameCount').textContent = imageInfo.frameCount;
+  selectedFrameIndex = 0;
+  gifFrames = [];
+  framePreviewCache = {};
+  loadFrameThumbnails();
+}
+
+function hideFrameStrip() {
+  $('framePanel').classList.remove('show');
+  $('dividerLeft').classList.remove('show');
+  $('playControls').classList.remove('show');
+  $('gifExportBtn').classList.remove('show');
+  stopPlayback();
+  gifFrames = [];
+  framePreviewCache = {};
+  $('frameScroll').innerHTML = '';
+}
+
+// Export modal
+let selectedExportOption = 'frame';
+
+function showExportModal() {
+  stopPlayback();
+
+  // Update modal with current frame info
+  $('exportFrameNum').textContent = selectedFrameIndex + 1;
+  $('exportTotalFrames').textContent = imageInfo.frameCount;
+
+  // Set thumbnail preview
+  const thumbContainer = $('exportThumb');
+  thumbContainer.innerHTML = '';
+  if (gifFrames[selectedFrameIndex] && gifFrames[selectedFrameIndex].thumbnail) {
+    const img = document.createElement('img');
+    img.src = gifFrames[selectedFrameIndex].thumbnail;
+    thumbContainer.appendChild(img);
+  }
+
+  // Reset selection to first option
+  selectedExportOption = 'frame';
+  document.querySelectorAll('.export-opt').forEach(opt => {
+    const input = opt.querySelector('input');
+    opt.classList.toggle('selected', input.value === 'frame');
+    input.checked = input.value === 'frame';
+  });
+
+  $('exportModal').classList.add('on');
+}
+
+function hideExportModal(e) {
+  if (!e || e.target === $('exportModal')) {
+    $('exportModal').classList.remove('on');
+  }
+}
+
+function selectExportOption(value) {
+  selectedExportOption = value;
+  document.querySelectorAll('.export-opt').forEach(opt => {
+    const input = opt.querySelector('input');
+    opt.classList.toggle('selected', input.value === value);
+    input.checked = input.value === value;
+  });
+}
+
+function confirmExport() {
+  hideExportModal();
+
+  switch (selectedExportOption) {
+    case 'frame':
+      exportSelectedFrame();
+      break;
+    case 'all-frames':
+      exportAllFrames();
+      break;
+    case 'gif':
+      exportAsGif();
+      break;
+  }
+}
+
+function togglePlayback() {
+  if (isPlaying) {
+    stopPlayback();
+  } else {
+    startPlayback();
+  }
+}
+
+function startPlayback() {
+  if (gifFrames.length < 2) return;
+  isPlaying = true;
+  $('playBtn').textContent = '⏸';
+  $('playBtn').classList.add('playing');
+
+  playInterval = setInterval(() => {
+    selectedFrameIndex = (selectedFrameIndex + 1) % gifFrames.length;
+    updatePlaybackFrame();
+  }, playSpeed);
+}
+
+function stopPlayback() {
+  isPlaying = false;
+  if (playInterval) {
+    clearInterval(playInterval);
+    playInterval = null;
+  }
+  $('playBtn').textContent = '▶';
+  $('playBtn').classList.remove('playing');
+}
+
+function setPlaySpeed(ms) {
+  playSpeed = parseInt(ms, 10);
+  if (isPlaying) {
+    stopPlayback();
+    startPlayback();
+  }
+}
+
+function updatePlaybackFrame() {
+  // Update thumbnail selection (no scrolling during playback - it's distracting)
+  document.querySelectorAll('.frame-thumb').forEach((thumb, i) => {
+    thumb.classList.toggle('selected', i === selectedFrameIndex);
+  });
+
+  // Update main preview
+  const frame = gifFrames[selectedFrameIndex];
+  if (frame && frame.thumbnail) {
+    const img = pA.querySelector('img');
+    if (img) {
+      img.src = frame.thumbnail;
+    } else {
+      pA.innerHTML = '';
+      const newImg = document.createElement('img');
+      newImg.src = frame.thumbnail;
+      pA.appendChild(newImg);
+      updateZoom();
+    }
+    pI.textContent = `Frame ${selectedFrameIndex + 1} of ${imageInfo.frameCount}`;
+  }
+}
+
+async function loadFrameThumbnails() {
+  const scroll = $('frameScroll');
+  scroll.innerHTML = '';
+
+  // Create placeholder thumbnails first
+  for (let i = 0; i < imageInfo.frameCount; i++) {
+    const thumb = document.createElement('div');
+    thumb.className = 'frame-thumb' + (i === 0 ? ' selected' : '');
+    thumb.dataset.index = i;
+    thumb.innerHTML = `<span class="frame-num">${i + 1}</span>`;
+    thumb.onclick = () => selectFrame(i);
+    scroll.appendChild(thumb);
+  }
+
+  // Load thumbnails in batches
+  for (let i = 0; i < imageInfo.frameCount; i++) {
+    try {
+      const result = await postJson('/api/frame-thumbnail', { frameIndex: i });
+      if (result.success && result.imageData) {
+        const thumb = scroll.children[i];
+        const img = document.createElement('img');
+        img.src = result.imageData;
+        thumb.insertBefore(img, thumb.firstChild);
+        gifFrames[i] = { index: i, thumbnail: result.imageData };
+      }
+    } catch (e) {
+      console.error('Failed to load frame', i, e);
+    }
+  }
+}
+
+function selectFrame(index) {
+  // Stop playback on manual selection
+  stopPlayback();
+
+  selectedFrameIndex = index;
+
+  // Update selection UI
+  document.querySelectorAll('.frame-thumb').forEach((thumb, i) => {
+    thumb.classList.toggle('selected', i === index);
+  });
+
+  // Show selected frame in main preview
+  showSelectedFrame();
+}
+
+async function showSelectedFrame() {
+  if (activeTools.size === 0) {
+    // Show original frame
+    const frame = gifFrames[selectedFrameIndex];
+    if (frame && frame.thumbnail) {
+      pA.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = frame.thumbnail;
+      pA.appendChild(img);
+      pI.textContent = `Frame ${selectedFrameIndex + 1} of ${imageInfo.frameCount}`;
+      updateZoom();
+    }
+  } else {
+    // Regenerate preview for selected frame
+    generatePreview();
+  }
+}
+
+// Update frame thumbnails with processed preview
+async function updateFramePreviews() {
+  if (!isGifFile || gifFrames.length === 0) return;
+
+  const opts = getOptions();
+  if (activeTools.size === 0) {
+    // Reset to original thumbnails
+    document.querySelectorAll('.frame-thumb').forEach((thumb, i) => {
+      thumb.classList.remove('processing');
+      const img = thumb.querySelector('img');
+      if (img && gifFrames[i]) {
+        img.src = gifFrames[i].thumbnail;
+      }
+    });
+    return;
+  }
+
+  // Show processing state on all thumbnails
+  document.querySelectorAll('.frame-thumb').forEach(thumb => {
+    thumb.classList.add('processing');
+  });
+
+  // Process frames (limit concurrent requests)
+  for (let i = 0; i < gifFrames.length; i++) {
+    try {
+      const result = await postJson('/api/frame-preview', {
+        frameIndex: i,
+        ...opts
+      });
+      const thumb = document.querySelector(`.frame-thumb[data-index="${i}"]`);
+      if (thumb) {
+        thumb.classList.remove('processing');
+        if (result.success && result.imageData) {
+          let img = thumb.querySelector('img');
+          if (!img) {
+            img = document.createElement('img');
+            thumb.insertBefore(img, thumb.firstChild);
+          }
+          img.src = result.imageData;
+        }
+      }
+    } catch (e) {
+      const thumb = document.querySelector(`.frame-thumb[data-index="${i}"]`);
+      if (thumb) thumb.classList.remove('processing');
+    }
+  }
+}
+
+// Export functions
+async function exportSelectedFrame() {
+  const opts = getOptions();
+  opts.exportMode = 'frame';
+  opts.frameIndex = selectedFrameIndex;
+  await runExport(opts, `Exporting frame ${selectedFrameIndex + 1}...`);
+}
+
+async function exportAllFrames() {
+  const opts = getOptions();
+  opts.exportMode = 'all-frames';
+  await runExport(opts, 'Exporting all frames...');
+}
+
+async function exportAsGif() {
+  const opts = getOptions();
+  opts.exportMode = 'gif';
+  await runExport(opts, 'Processing and exporting GIF...');
+}
+
+async function runExport(opts, message) {
+  $('M').classList.add('hide');
+  $('B').classList.add('hide');
+  $('L').classList.add('on');
+  $('G').classList.add('on');
+  $('G').innerHTML = '';
+  $('lT').textContent = message;
+
+  try {
+    const result = await postJson('/api/process', opts);
+    if (result.logs) {
+      result.logs.forEach(l => log('G', l.type[0], l.message));
+    }
+    showDone(result.success, result.success ? 'Done' : 'Failed', result.success ? result.output : result.error);
+  } catch (e) {
+    log('G', 'e', e.message);
+    showDone(false, 'Error', e.message);
+  }
 }
 
 // ── Store Assets Preset Management ──
@@ -914,16 +1389,10 @@ async function apply() {
       result.logs.forEach(l => log('G', l.type[0], l.message));
     }
 
-    $('L').classList.remove('on');
-    $('D').classList.add('on', result.success ? 'ok' : 'err');
-    $('dT').textContent = result.success ? 'Done' : 'Failed';
-    $('dM').textContent = result.success ? result.output : result.error;
+    showDone(result.success, result.success ? 'Done' : 'Failed', result.success ? result.output : result.error);
   } catch (e) {
     log('G', 'e', e.message);
-    $('L').classList.remove('on');
-    $('D').classList.add('on', 'err');
-    $('dT').textContent = 'Error';
-    $('dM').textContent = e.message;
+    showDone(false, 'Error', e.message);
   }
 }
 
@@ -933,42 +1402,98 @@ function reset() {
   $('G').classList.remove('on');
   $('M').classList.remove('hide');
   $('B').classList.remove('hide');
+  $('openFolderBtn').style.display = 'none';
+  lastOutputSuccess = false;
+}
+
+// Close with unsaved changes warning
+function tryClose() {
+  if (hasChanges && activeTools.size > 0) {
+    showConfirm('You have unsaved changes. Close anyway?', () => PicLet.close(), 'Close');
+  } else {
+    PicLet.close();
+  }
+}
+
+// Open output folder in Explorer
+function openOutputFolder() {
+  postJson('/api/open-folder', {});
+}
+
+// Show done state with optional folder button
+function showDone(success, title, message) {
+  $('L').classList.remove('on');
+  $('D').classList.add('on', success ? 'ok' : 'err');
+  $('dT').textContent = title;
+  $('dM').textContent = message;
+  lastOutputSuccess = success;
+  $('openFolderBtn').style.display = success ? '' : 'none';
+  if (success) hasChanges = false;
 }
 
 // Init
 setupDragDrop();
 setupDivider();
 
-// Resizable divider
+// Resizable dividers
 function setupDivider() {
   const divider = $('divider');
+  const dividerLeft = $('dividerLeft');
   const toolsPanel = document.querySelector('.tools-panel');
+  const framePanel = $('framePanel');
   const main = $('M');
-  let isDragging = false;
+  let isDraggingRight = false;
+  let isDraggingLeft = false;
 
+  // Right divider (tools panel)
   divider.addEventListener('mousedown', (e) => {
-    isDragging = true;
+    isDraggingRight = true;
     divider.classList.add('dragging');
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     e.preventDefault();
   });
 
+  // Left divider (frame panel)
+  dividerLeft.addEventListener('mousedown', (e) => {
+    isDraggingLeft = true;
+    dividerLeft.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
   document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
     const mainRect = main.getBoundingClientRect();
-    // Tools width = distance from cursor to right edge
-    const toolsWidth = mainRect.right - e.clientX;
-    // Clamp: min 240px for tools, leave at least 150px for preview
-    const maxTools = mainRect.width - 150;
-    const clampedWidth = Math.max(240, Math.min(maxTools, toolsWidth));
-    toolsPanel.style.width = clampedWidth + 'px';
+
+    if (isDraggingRight) {
+      // Tools width = distance from cursor to right edge
+      const toolsWidth = mainRect.right - e.clientX;
+      // Clamp: min 240px for tools, leave at least 150px for preview
+      const maxTools = mainRect.width - 150;
+      const clampedWidth = Math.max(240, Math.min(maxTools, toolsWidth));
+      toolsPanel.style.width = clampedWidth + 'px';
+    }
+
+    if (isDraggingLeft) {
+      // Frame panel width = distance from left edge to cursor
+      const frameWidth = e.clientX - mainRect.left;
+      // Clamp: min 60px, max 150px for frame panel
+      const clampedWidth = Math.max(60, Math.min(150, frameWidth));
+      framePanel.style.width = clampedWidth + 'px';
+    }
   });
 
   document.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
+    if (isDraggingRight) {
+      isDraggingRight = false;
       divider.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    if (isDraggingLeft) {
+      isDraggingLeft = false;
+      dividerLeft.classList.remove('dragging');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     }

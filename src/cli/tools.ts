@@ -1,4 +1,5 @@
 import * as border from '../tools/border.js';
+import * as extractFrames from '../tools/extract-frames.js';
 import * as filter from '../tools/filter.js';
 import * as iconpack from '../tools/iconpack.js';
 import * as makeicon from '../tools/makeicon.js';
@@ -41,6 +42,7 @@ export const tools: Tool[] = [
 	{ config: filter.config, run: filter.run, runGUI: filter.runGUI },
 	{ config: border.config, run: border.run, runGUI: border.runGUI },
 	{ config: recolor.config, run: recolor.run, runGUI: recolor.runGUI },
+	{ config: extractFrames.config, run: extractFrames.run, runGUI: extractFrames.runGUI },
 ];
 
 /** Unified PicLet tool (all-in-one) */
@@ -50,7 +52,7 @@ export const picletTool: UnifiedTool = {
 };
 
 /** Tools that use TUI (terminal GUI) mode */
-export const tuiTools = ['makeicon', 'remove-bg', 'rescale', 'iconpack', 'storepack', 'transform', 'filter', 'border', 'recolor'];
+export const tuiTools = ['makeicon', 'remove-bg', 'rescale', 'iconpack', 'storepack', 'transform', 'filter', 'border', 'recolor', 'extract-frames'];
 
 /** Get tool by ID */
 export function getTool(id: string): Tool | undefined {

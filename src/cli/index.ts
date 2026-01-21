@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { showBanner } from '../lib/banner.js';
 import { registerBorderCommand } from './commands/border.js';
 import { registerConfigCommand } from './commands/config.js';
+import { registerExtractFramesCommand } from './commands/extract-frames.js';
 import { registerFilterCommand } from './commands/filter.js';
 import { registerHelpCommand } from './commands/help.js';
 import { registerIconpackCommand } from './commands/iconpack.js';
@@ -55,6 +56,9 @@ export function showHelp(): void {
 	);
 	console.log(
 		`    ${cmd('recolor')} ${arg('<file>')}    Replace one color with another`,
+	);
+	console.log(
+		`    ${cmd('frames')} ${arg('<file>')}      Extract frames from animated GIF`,
 	);
 	console.log(
 		`    ${cmd('iconpack')} ${arg('<file>')}   Generate icon sets for Web/Android/iOS`,
@@ -113,6 +117,7 @@ export function createProgram(): Command {
 	registerFilterCommand(program);
 	registerBorderCommand(program);
 	registerRecolorCommand(program);
+	registerExtractFramesCommand(program);
 	registerIconpackCommand(program);
 	registerStorepackCommand(program);
 	registerPicletCommand(program);

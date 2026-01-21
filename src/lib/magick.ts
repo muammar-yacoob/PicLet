@@ -345,12 +345,14 @@ export function cleanup(...files: string[]): void {
 }
 
 /**
- * Extract first frame from GIF/ICO for fast preview
+ * Extract a frame from GIF/ICO for preview
+ * @param frameIndex - Which frame to extract (default 0 = first frame)
  * Returns the input path if not a multi-frame format
  */
 export async function extractFirstFrame(
 	inputPath: string,
 	outputPath: string,
+	frameIndex = 0,
 ): Promise<boolean> {
 	const lowerPath = inputPath.toLowerCase();
 	if (!lowerPath.endsWith('.gif') && !lowerPath.endsWith('.ico')) {
@@ -364,8 +366,14 @@ export async function extractFirstFrame(
 	}
 
 	try {
-		// Extract first frame only - much faster than processing all frames
-		await execAsync(`convert "${inputPath}[0]" "${outputPath}"`);
+		if (lowerPath.endsWith('.gif')) {
+			// GIFs need coalescing first to handle delta-encoded frames
+			// Coalesce composites all frames properly, then we extract the specific frame
+			await execAsync(`convert "${inputPath}" -coalesce miff:- | convert "miff:-[${frameIndex}]" "${outputPath}"`);
+		} else {
+			// ICO files don't need coalescing
+			await execAsync(`convert "${inputPath}[${frameIndex}]" "${outputPath}"`);
+		}
 		return true;
 	} catch {
 		return false;
@@ -378,6 +386,48 @@ export async function extractFirstFrame(
 export function isMultiFrame(imagePath: string): boolean {
 	const lowerPath = imagePath.toLowerCase();
 	return lowerPath.endsWith('.gif') || lowerPath.endsWith('.ico');
+}
+
+/**
+ * Get frame count from animated GIF
+ */
+export async function getFrameCount(imagePath: string): Promise<number> {
+	try {
+		const { stdout } = await execAsync(
+			`identify -format "%n\\n" "${imagePath}" | head -1`,
+		);
+		const count = parseInt(stdout.trim(), 10);
+		return Number.isNaN(count) ? 1 : count;
+	} catch {
+		return 1;
+	}
+}
+
+/**
+ * Extract all frames from animated GIF to individual PNG files
+ * Returns array of output file paths
+ */
+export async function extractAllFrames(
+	inputPath: string,
+	outputDir: string,
+	baseName: string,
+): Promise<string[]> {
+	try {
+		// Ensure output directory exists
+		ensureDir(`${outputDir}/dummy`);
+
+		// Extract frames - ImageMagick will create baseName-0.png, baseName-1.png, etc.
+		await execAsync(
+			`convert "${inputPath}" -coalesce "${outputDir}/${baseName}-%04d.png"`,
+		);
+
+		// Get list of created files
+		const { stdout } = await execAsync(`ls -1 "${outputDir}/${baseName}"-*.png 2>/dev/null || true`);
+		const files = stdout.trim().split('\n').filter(f => f.length > 0);
+		return files;
+	} catch {
+		return [];
+	}
 }
 
 /**

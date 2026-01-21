@@ -11,9 +11,11 @@ import {
 	cleanup,
 	createIco,
 	createIcoFromMultiple,
+	extractAllFrames,
 	extractFirstFrame,
 	getBorderColor,
 	getDimensions,
+	getFrameCount,
 	isMultiFrame,
 	removeBackground,
 	removeBackgroundBorderOnly,
@@ -247,9 +249,11 @@ async function processCombined(
 	const fileInfo = getFileInfo(input);
 	const outputs: string[] = [];
 	const temps: string[] = [];
+	// Preserve GIF extension for animated files, use PNG for others
+	const outputExt = fileInfo.extension.toLowerCase() === '.gif' ? '.gif' : '.png';
 
 	const makeTempPath = (suffix: string) => {
-		const p = `${fileInfo.dirname}/${fileInfo.filename}_${suffix}.png`;
+		const p = `${fileInfo.dirname}/${fileInfo.filename}_${suffix}${outputExt}`;
 		temps.push(p);
 		return p;
 	};
@@ -298,7 +302,7 @@ async function processCombined(
 
 				// If this is the last tool, save output
 				if (activeTools.indexOf(tool) === activeTools.length - 1) {
-					const finalOut = `${fileInfo.dirname}/${fileInfo.filename}_nobg.png`;
+					const finalOut = `${fileInfo.dirname}/${fileInfo.filename}_nobg${outputExt}`;
 					renameSync(current, finalOut);
 					temps.splice(temps.indexOf(current), 1);
 					outputs.push(basename(finalOut));
@@ -337,7 +341,7 @@ async function processCombined(
 
 				// If this is the last tool, save output
 				if (activeTools.indexOf(tool) === activeTools.length - 1) {
-					const finalOut = `${fileInfo.dirname}/${fileInfo.filename}_scaled${fileInfo.extension}`;
+					const finalOut = `${fileInfo.dirname}/${fileInfo.filename}_scaled${outputExt}`;
 					renameSync(current, finalOut);
 					temps.splice(temps.indexOf(current), 1);
 					outputs.push(basename(finalOut));
@@ -537,7 +541,132 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 	}
 
 	let currentBorderColor = await getBorderColor(currentInput);
+	let currentFrameCount = isMultiFrame(currentInput) ? await getFrameCount(currentInput) : 1;
 	const presets = loadPresets();
+
+	// Helper to generate frame thumbnail
+	async function generateFrameThumbnail(frameIndex: number): Promise<{ success: boolean; imageData?: string; error?: string }> {
+		const tempDir = tmpdir();
+		const tempOutput = join(tempDir, `piclet-frame-${Date.now()}-${frameIndex}.png`);
+		try {
+			if (!(await extractFirstFrame(currentInput, tempOutput, frameIndex))) {
+				return { success: false, error: 'Failed to extract frame' };
+			}
+			// Scale down for thumbnail
+			const thumbOutput = join(tempDir, `piclet-thumb-${Date.now()}-${frameIndex}.png`);
+			await scaleToSize(tempOutput, thumbOutput, 96);
+			const buffer = readFileSync(thumbOutput);
+			cleanup(tempOutput, thumbOutput);
+			return {
+				success: true,
+				imageData: `data:image/png;base64,${buffer.toString('base64')}`,
+			};
+		} catch (err) {
+			cleanup(tempOutput);
+			return { success: false, error: (err as Error).message };
+		}
+	}
+
+	// Helper to generate processed frame preview (for thumbnails)
+	async function generateFramePreview(
+		frameIndex: number,
+		opts: ToolOptions,
+	): Promise<{ success: boolean; imageData?: string; error?: string }> {
+		const tempDir = tmpdir();
+		const ts = Date.now();
+		const frameFile = join(tempDir, `piclet-fp-${ts}-${frameIndex}.png`);
+		const temps: string[] = [frameFile];
+
+		try {
+			// Extract single frame
+			if (!(await extractFirstFrame(currentInput, frameFile, frameIndex))) {
+				return { success: false, error: 'Failed to extract frame' };
+			}
+
+			let current = frameFile;
+
+			// Apply tools in order
+			const activeTools = ['removebg', 'scale', 'icons'].filter(t => opts.tools.includes(t));
+
+			for (const tool of activeTools) {
+				const tempOut = join(tempDir, `piclet-fp-${ts}-${frameIndex}-${tool}.png`);
+				temps.push(tempOut);
+
+				switch (tool) {
+					case 'removebg': {
+						const rbOpts = opts.removebg!;
+						let success = false;
+						if (rbOpts.preserveInner && currentBorderColor) {
+							success = await removeBackgroundBorderOnly(current, tempOut, currentBorderColor, rbOpts.fuzz);
+						}
+						if (!success && currentBorderColor) {
+							success = await removeBackground(current, tempOut, currentBorderColor, rbOpts.fuzz);
+						}
+						if (success) {
+							if (rbOpts.trim) {
+								const trimOut = join(tempDir, `piclet-fp-${ts}-${frameIndex}-trim.png`);
+								temps.push(trimOut);
+								if (await trim(tempOut, trimOut)) {
+									current = trimOut;
+								} else {
+									current = tempOut;
+								}
+							} else {
+								current = tempOut;
+							}
+						}
+						break;
+					}
+					case 'scale': {
+						const scOpts = opts.scale!;
+						if (scOpts.makeSquare) {
+							const max = Math.max(scOpts.width, scOpts.height);
+							if (await scaleWithPadding(current, tempOut, max, max)) {
+								current = tempOut;
+							}
+						} else {
+							if (await resize(current, tempOut, scOpts.width, scOpts.height)) {
+								current = tempOut;
+							}
+						}
+						break;
+					}
+					case 'icons': {
+						const icOpts = opts.icons!;
+						if (icOpts.trim) {
+							const trimOut = join(tempDir, `piclet-fp-${ts}-${frameIndex}-ictrim.png`);
+							temps.push(trimOut);
+							if (await trim(current, trimOut)) {
+								current = trimOut;
+							}
+						}
+						if (icOpts.makeSquare) {
+							if (await squarify(current, tempOut)) {
+								current = tempOut;
+							}
+						}
+						break;
+					}
+				}
+			}
+
+			// Scale down for thumbnail
+			const thumbOut = join(tempDir, `piclet-fp-${ts}-${frameIndex}-thumb.png`);
+			temps.push(thumbOut);
+			await scaleToSize(current, thumbOut, 96);
+
+			const buffer = readFileSync(thumbOut);
+			cleanup(...temps);
+
+			return {
+				success: true,
+				imageData: `data:image/png;base64,${buffer.toString('base64')}`,
+			};
+		} catch (err) {
+			cleanup(...temps);
+			return { success: false, error: (err as Error).message };
+		}
+	}
 
 	return startGuiServer({
 		htmlFile: 'piclet.html',
@@ -548,6 +677,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			width: dims[0],
 			height: dims[1],
 			borderColor: currentBorderColor,
+			frameCount: currentFrameCount,
 		},
 		defaults: {
 			// Return full preset data for the UI
@@ -559,16 +689,41 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			})),
 		},
 		onPreview: async (opts) => {
-			const toolOpts = opts as unknown as ToolOptions;
+			const toolOpts = opts as unknown as ToolOptions & { frameIndex?: number };
 			// Allow empty tools array - will show original image
 			if (!toolOpts.tools) {
 				toolOpts.tools = [];
 			}
+
+			// For GIFs with frameIndex, preview that specific frame
+			if (isMultiFrame(currentInput) && typeof toolOpts.frameIndex === 'number') {
+				const tempDir = tmpdir();
+				const ts = Date.now();
+				const frameFile = join(tempDir, `piclet-prev-${ts}.png`);
+
+				if (!(await extractFirstFrame(currentInput, frameFile, toolOpts.frameIndex))) {
+					return { success: false, error: 'Failed to extract frame' };
+				}
+
+				// Generate preview with the extracted frame
+				const result = await generateCombinedPreview(frameFile, currentBorderColor, toolOpts);
+				cleanup(frameFile);
+				return result;
+			}
+
 			return generateCombinedPreview(currentInput, currentBorderColor, toolOpts);
 		},
 		onProcess: async (opts) => {
 			const logs: Array<{ type: string; message: string }> = [];
-			const toolOpts = opts as unknown as ToolOptions;
+			const toolOpts = opts as unknown as ToolOptions & {
+				exportMode?: 'frame' | 'all-frames' | 'gif';
+				frameIndex?: number;
+			};
+
+			// Handle GIF export modes
+			if (toolOpts.exportMode && isMultiFrame(currentInput)) {
+				return processGifExport(currentInput, currentBorderColor, toolOpts, logs);
+			}
 
 			if (!toolOpts.tools || toolOpts.tools.length === 0) {
 				return { success: false, error: 'No tools selected', logs };
@@ -610,10 +765,12 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 				}
 
 				const newBorderColor = await getBorderColor(tempPath);
+				const newFrameCount = isMultiFrame(tempPath) ? await getFrameCount(tempPath) : 1;
 
 				// Update current image
 				currentInput = tempPath;
 				currentBorderColor = newBorderColor;
+				currentFrameCount = newFrameCount;
 
 				return {
 					success: true,
@@ -622,12 +779,123 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 					width: newDims[0],
 					height: newDims[1],
 					borderColor: newBorderColor,
+					frameCount: newFrameCount,
 				};
 			} catch (err) {
 				return { success: false, error: (err as Error).message };
 			}
 		},
+		onFrameThumbnail: generateFrameThumbnail,
+		onFramePreview: async (frameIndex, opts) => {
+			const toolOpts = opts as unknown as ToolOptions;
+			if (!toolOpts.tools) toolOpts.tools = [];
+			return generateFramePreview(frameIndex, toolOpts);
+		},
 	});
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GIF Export Processing
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function processGifExport(
+	input: string,
+	borderColor: string | null,
+	opts: ToolOptions & { exportMode?: string; frameIndex?: number },
+	logs: Array<{ type: string; message: string }>,
+): Promise<{ success: boolean; output?: string; error?: string; logs: Array<{ type: string; message: string }> }> {
+	if (!(await checkImageMagick())) {
+		return {
+			success: false,
+			error: 'ImageMagick not found',
+			logs: [{ type: 'error', message: 'ImageMagick not found' }],
+		};
+	}
+
+	const fileInfo = getFileInfo(input);
+	const tempDir = tmpdir();
+	const ts = Date.now();
+
+	switch (opts.exportMode) {
+		case 'frame': {
+			// Export single selected frame
+			const frameIndex = opts.frameIndex ?? 0;
+			logs.push({ type: 'info', message: `Exporting frame ${frameIndex + 1}...` });
+
+			const frameFile = join(tempDir, `piclet-export-${ts}.png`);
+			if (!(await extractFirstFrame(input, frameFile, frameIndex))) {
+				logs.push({ type: 'error', message: 'Failed to extract frame' });
+				return { success: false, error: 'Failed to extract frame', logs };
+			}
+
+			// Apply tools if any
+			let outputFile = frameFile;
+			if (opts.tools && opts.tools.length > 0) {
+				const processedLogs: Array<{ type: string; message: string }> = [];
+				const outputs = await processCombined(frameFile, borderColor, opts, processedLogs);
+				logs.push(...processedLogs);
+
+				if (outputs.length === 0) {
+					cleanup(frameFile);
+					return { success: false, error: 'Processing failed', logs };
+				}
+			}
+
+			// Move to final location
+			const finalOutput = `${fileInfo.dirname}/${fileInfo.filename}_frame${frameIndex + 1}.png`;
+			if (outputFile === frameFile) {
+				renameSync(frameFile, finalOutput);
+			}
+
+			logs.push({ type: 'success', message: `Exported frame ${frameIndex + 1}` });
+			return { success: true, output: basename(finalOutput), logs };
+		}
+
+		case 'all-frames': {
+			// Export all frames as PNGs
+			logs.push({ type: 'info', message: 'Extracting all frames...' });
+
+			const outputDir = `${fileInfo.dirname}/${fileInfo.filename}_frames`;
+			mkdirSync(outputDir, { recursive: true });
+
+			const frames = await extractAllFrames(input, outputDir, 'frame');
+
+			if (frames.length === 0) {
+				logs.push({ type: 'error', message: 'Failed to extract frames' });
+				return { success: false, error: 'Failed to extract frames', logs };
+			}
+
+			// Apply tools to each frame if any
+			if (opts.tools && opts.tools.length > 0) {
+				logs.push({ type: 'info', message: `Processing ${frames.length} frames...` });
+				for (let i = 0; i < frames.length; i++) {
+					const frameLogs: Array<{ type: string; message: string }> = [];
+					await processCombined(frames[i], borderColor, opts, frameLogs);
+				}
+				logs.push({ type: 'success', message: `Processed ${frames.length} frames` });
+			}
+
+			logs.push({ type: 'success', message: `Exported ${frames.length} frames` });
+			return { success: true, output: `${frames.length} frames -> ${fileInfo.filename}_frames/`, logs };
+		}
+
+		case 'gif': {
+			// Process and export as GIF
+			logs.push({ type: 'info', message: 'Processing GIF...' });
+
+			// Use standard processing which handles GIFs with -coalesce
+			const outputs = await processCombined(input, borderColor, opts, logs);
+
+			if (outputs.length > 0) {
+				return { success: true, output: outputs.join('\n'), logs };
+			}
+
+			return { success: false, error: 'Processing failed', logs };
+		}
+
+		default:
+			return { success: false, error: 'Unknown export mode', logs };
+	}
 }
 
 export const config = {

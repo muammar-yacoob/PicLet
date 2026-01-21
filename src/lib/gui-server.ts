@@ -36,8 +36,8 @@ function openAppWindow(url: string): void {
 		windowsHide: true,
 	}).unref();
 
-	// Signal loading window to close after a brief delay for Edge to appear
-	setTimeout(signalReady, 500);
+	// Signal loading window to close immediately - Edge starts fast
+	signalReady();
 }
 
 export interface GuiServerOptions {
@@ -49,6 +49,7 @@ export interface GuiServerOptions {
 		width: number;
 		height: number;
 		borderColor: string | null;
+		frameCount?: number;
 	};
 	defaults: Record<string, unknown>;
 	onPreview?: (options: Record<string, unknown>) => Promise<{
@@ -71,6 +72,17 @@ export interface GuiServerOptions {
 		width?: number;
 		height?: number;
 		borderColor?: string | null;
+		frameCount?: number;
+		error?: string;
+	}>;
+	onFrameThumbnail?: (frameIndex: number) => Promise<{
+		success: boolean;
+		imageData?: string;
+		error?: string;
+	}>;
+	onFramePreview?: (frameIndex: number, options: Record<string, unknown>) => Promise<{
+		success: boolean;
+		imageData?: string;
 		error?: string;
 	}>;
 }
@@ -114,8 +126,39 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 				width: options.imageInfo.width,
 				height: options.imageInfo.height,
 				borderColor: options.imageInfo.borderColor,
+				frameCount: options.imageInfo.frameCount || 1,
 				defaults: options.defaults,
 			});
+		});
+
+		// API: Get frame thumbnail (for GIFs)
+		app.post('/api/frame-thumbnail', async (req, res) => {
+			if (!options.onFrameThumbnail) {
+				res.json({ success: false, error: 'Frame thumbnails not supported' });
+				return;
+			}
+			try {
+				const frameIndex = (req.body.frameIndex as number) ?? 0;
+				const result = await options.onFrameThumbnail(frameIndex);
+				res.json(result);
+			} catch (err) {
+				res.json({ success: false, error: (err as Error).message });
+			}
+		});
+
+		// API: Get processed frame preview (for GIFs)
+		app.post('/api/frame-preview', async (req, res) => {
+			if (!options.onFramePreview) {
+				res.json({ success: false, error: 'Frame preview not supported' });
+				return;
+			}
+			try {
+				const { frameIndex, ...opts } = req.body;
+				const result = await options.onFramePreview(frameIndex ?? 0, opts);
+				res.json(result);
+			} catch (err) {
+				res.json({ success: false, error: (err as Error).message });
+			}
 		});
 
 		// API: Preview image (if supported)
@@ -225,6 +268,29 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 			}
 			// Use PowerShell Start-Process which opens in default browser
 			spawn('powershell.exe', ['-WindowStyle', 'Hidden', '-Command', `Start-Process '${url}'`], {
+				detached: true,
+				stdio: 'ignore',
+				windowsHide: true,
+			}).unref();
+			res.json({ success: true });
+		});
+
+		// API: Open output folder in Explorer
+		app.post('/api/open-folder', (_req, res) => {
+			// Get directory from current image path (output goes to same folder)
+			const filePath = options.imageInfo.filePath;
+			// Convert WSL path to Windows path for explorer
+			// /mnt/c/path -> C:\path
+			let winPath = filePath;
+			const wslMatch = filePath.match(/^\/mnt\/([a-z])\/(.*)$/);
+			if (wslMatch) {
+				const drive = wslMatch[1].toUpperCase();
+				const rest = wslMatch[2].replace(/\//g, '\\');
+				winPath = `${drive}:\\${rest}`;
+			}
+			// Get directory and open in Explorer
+			const dir = winPath.substring(0, winPath.lastIndexOf('\\')) || winPath.substring(0, winPath.lastIndexOf('/'));
+			spawn('powershell.exe', ['-WindowStyle', 'Hidden', '-Command', `explorer.exe "${dir}"`], {
 				detached: true,
 				stdio: 'ignore',
 				windowsHide: true,

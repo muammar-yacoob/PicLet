@@ -20,8 +20,7 @@
 />
 <style>
   *{margin:0;padding:0}
-  html,body{height:100%;overflow:hidden;background:linear-gradient(180deg,#0a0a0c 0%,#111113 100%);transition:opacity .4s ease-out}
-  body.fade-out{opacity:0}
+  html,body{height:100%;overflow:hidden;background:linear-gradient(180deg,#0a0a0c 0%,#111113 100%)}
   body{font-family:Segoe UI,sans-serif;color:#e4e4e7;text-align:center;padding:24px}
   .logo{width:80px;height:80px;margin-bottom:8px}
   .title{font-size:28px;font-weight:700;color:#eab308;margin-bottom:2px}
@@ -51,10 +50,9 @@
     if (!closing && fso.FileExists(readyFile)) {
       closing = true;
       try { fso.DeleteFile(readyFile); } catch(e) {}
-      document.body.className = 'fade-out';
-      setTimeout(function() { window.close(); }, 400);
+      window.close();
     }
-  }, 200);
+  }, 50);
 
   // Animate dots
   var idx = 0;
