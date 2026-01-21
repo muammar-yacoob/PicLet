@@ -58,21 +58,27 @@ input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;hei
 @keyframes s{to{transform:rotate(360deg)}}
 .ld span{font-size:12px;color:var(--txt3)}
 
-/* Log - fills available space */
-.log{display:none;font:11px/1.4 Consolas,monospace;background:var(--bg2);border-radius:5px;padding:8px;flex:1;min-height:60px;max-height:none;overflow-y:auto}
-.log.on{display:block}
+/* Log with preview - 6 lines high with thumbnail */
+.log-container{display:none;gap:8px;height:calc(6 * 1.4em + 16px);flex-shrink:0}
+.log-container.on{display:flex}
+.log{flex:1;font:10px/1.4 Consolas,monospace;background:var(--bg2);border-radius:5px;padding:8px;overflow-y:auto;min-width:0}
 .log p{margin:2px 0}
 .log .i{color:var(--txt3)}
 .log .s{color:var(--ok)}
 .log .e{color:var(--err)}
+.log-preview{width:80px;height:80px;object-fit:contain;background:var(--bg2);border-radius:5px;border:1px solid var(--brd);flex-shrink:0;display:none;align-self:center}
+.log-preview.on{display:block}
 
-/* Done state */
-.dn{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:4px}
-.dn.on{display:flex}
-.dn h4{font-size:14px}
-.dn.ok h4{color:var(--ok)}
-.dn.err h4{color:var(--err)}
-.dn p{font-size:12px;color:var(--txt2);text-align:center}
+/* Done modal */
+#doneModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center}
+#doneModal.on{display:flex}
+.done-modal{background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:16px 24px;text-align:center;min-width:200px}
+.done-modal h4{font-size:14px;margin:0 0 4px}
+.done-modal.ok h4{color:var(--ok)}
+.done-modal.err h4{color:var(--err)}
+.done-modal p{font-size:11px;color:var(--txt2);margin:0 0 12px;word-break:break-word}
+.done-btns{display:flex;gap:8px;justify-content:center}
+.done-btns .btn{padding:8px 16px;font-size:12px}
 
 /* Warning/info box */
 .warn-box{display:none;font-size:10px;color:#ca8a04;background:rgba(202,138,4,0.1);padding:6px 8px;border-radius:4px;text-align:center}

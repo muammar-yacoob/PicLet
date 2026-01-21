@@ -62,6 +62,7 @@ export interface GuiServerOptions {
 	onProcess: (options: Record<string, unknown>) => Promise<{
 		success: boolean;
 		output?: string;
+		outputPath?: string; // Full path to single output file (for preview)
 		error?: string;
 		logs: Array<{ type: string; message: string }>;
 	}>;
@@ -83,6 +84,25 @@ export interface GuiServerOptions {
 	onFramePreview?: (frameIndex: number, options: Record<string, unknown>) => Promise<{
 		success: boolean;
 		imageData?: string;
+		error?: string;
+	}>;
+	onSimplifyGif?: (skipFactor: number) => Promise<{
+		success: boolean;
+		filePath?: string;
+		fileName?: string;
+		width?: number;
+		height?: number;
+		frameCount?: number;
+		error?: string;
+	}>;
+	onDeleteFrame?: (frameIndex: number) => Promise<{
+		success: boolean;
+		frameCount?: number;
+		error?: string;
+	}>;
+	onReplaceFrame?: (frameIndex: number, imageData: string) => Promise<{
+		success: boolean;
+		frameCount?: number;
 		error?: string;
 	}>;
 }
@@ -161,6 +181,65 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 			}
 		});
 
+		// API: Simplify GIF by skipping frames
+		app.post('/api/simplify-gif', async (req, res) => {
+			if (!options.onSimplifyGif) {
+				res.json({ success: false, error: 'GIF simplification not supported' });
+				return;
+			}
+			try {
+				const skipFactor = (req.body.skipFactor as number) ?? 2;
+				const result = await options.onSimplifyGif(skipFactor);
+				if (result.success) {
+					// Update current image info
+					options.imageInfo.filePath = result.filePath!;
+					options.imageInfo.fileName = result.fileName!;
+					options.imageInfo.width = result.width!;
+					options.imageInfo.height = result.height!;
+					options.imageInfo.frameCount = result.frameCount;
+				}
+				res.json(result);
+			} catch (err) {
+				res.json({ success: false, error: (err as Error).message });
+			}
+		});
+
+		// API: Delete a frame from GIF
+		app.post('/api/delete-frame', async (req, res) => {
+			if (!options.onDeleteFrame) {
+				res.json({ success: false, error: 'Frame deletion not supported' });
+				return;
+			}
+			try {
+				const frameIndex = req.body.frameIndex as number;
+				const result = await options.onDeleteFrame(frameIndex);
+				if (result.success) {
+					options.imageInfo.frameCount = result.frameCount;
+				}
+				res.json(result);
+			} catch (err) {
+				res.json({ success: false, error: (err as Error).message });
+			}
+		});
+
+		// API: Replace a frame in GIF
+		app.post('/api/replace-frame', async (req, res) => {
+			if (!options.onReplaceFrame) {
+				res.json({ success: false, error: 'Frame replacement not supported' });
+				return;
+			}
+			try {
+				const { frameIndex, imageData } = req.body;
+				const result = await options.onReplaceFrame(frameIndex, imageData);
+				if (result.success) {
+					options.imageInfo.frameCount = result.frameCount;
+				}
+				res.json(result);
+			} catch (err) {
+				res.json({ success: false, error: (err as Error).message });
+			}
+		});
+
 		// API: Preview image (if supported)
 		app.post('/api/preview', async (req, res) => {
 			if (!options.onPreview) {
@@ -183,6 +262,12 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 			try {
 				const result = await options.onProcess(req.body);
 				processResult = result.success;
+				// Store output path for preview
+				if (result.outputPath) {
+					(options as { lastOutputPath?: string }).lastOutputPath = result.outputPath;
+				} else {
+					(options as { lastOutputPath?: string }).lastOutputPath = undefined;
+				}
 				res.json(result);
 			} catch (err) {
 				processResult = false;
@@ -275,10 +360,46 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 			res.json({ success: true });
 		});
 
+		// API: Get output file as base64 for preview
+		app.get('/api/output-preview', (_req, res) => {
+			const outputPath = (options as { lastOutputPath?: string }).lastOutputPath;
+			if (!outputPath) {
+				res.json({ success: false, error: 'No output file' });
+				return;
+			}
+			try {
+				const fs = require('node:fs');
+				const path = require('node:path');
+				if (!fs.existsSync(outputPath)) {
+					res.json({ success: false, error: 'Output file not found' });
+					return;
+				}
+				const buffer = fs.readFileSync(outputPath);
+				const ext = path.extname(outputPath).toLowerCase();
+				const mimeTypes: Record<string, string> = {
+					'.png': 'image/png',
+					'.jpg': 'image/jpeg',
+					'.jpeg': 'image/jpeg',
+					'.gif': 'image/gif',
+					'.ico': 'image/x-icon',
+				};
+				const mimeType = mimeTypes[ext] || 'image/png';
+				res.json({
+					success: true,
+					imageData: `data:${mimeType};base64,${buffer.toString('base64')}`,
+					isGif: ext === '.gif',
+				});
+			} catch (err) {
+				res.json({ success: false, error: (err as Error).message });
+			}
+		});
+
 		// API: Open output folder in Explorer
 		app.post('/api/open-folder', (_req, res) => {
-			// Get directory from current image path (output goes to same folder)
-			const filePath = options.imageInfo.filePath;
+			// Use output path if available, otherwise fall back to input file directory
+			const outputPath = (options as { lastOutputPath?: string }).lastOutputPath;
+			const filePath = outputPath || options.imageInfo.filePath;
+
 			// Convert WSL path to Windows path for explorer
 			// /mnt/c/path -> C:\path
 			let winPath = filePath;
@@ -288,9 +409,17 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 				const rest = wslMatch[2].replace(/\//g, '\\');
 				winPath = `${drive}:\\${rest}`;
 			}
-			// Get directory and open in Explorer
-			const dir = winPath.substring(0, winPath.lastIndexOf('\\')) || winPath.substring(0, winPath.lastIndexOf('/'));
-			spawn('powershell.exe', ['-WindowStyle', 'Hidden', '-Command', `explorer.exe "${dir}"`], {
+
+			// Get directory from the file path
+			const lastSep = Math.max(winPath.lastIndexOf('\\'), winPath.lastIndexOf('/'));
+			const dir = lastSep > 0 ? winPath.substring(0, lastSep) : winPath;
+
+			// Open folder and select the file if we have an output path
+			const explorerCmd = outputPath
+				? `explorer.exe /select,"${winPath}"`
+				: `explorer.exe "${dir}"`;
+
+			spawn('powershell.exe', ['-WindowStyle', 'Hidden', '-Command', explorerCmd], {
 				detached: true,
 				stdio: 'ignore',
 				windowsHide: true,

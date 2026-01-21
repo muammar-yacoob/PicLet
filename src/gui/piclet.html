@@ -162,6 +162,11 @@
     .gif-export-btn{display:none;width:100%;padding:8px 4px;font-size:10px;background:var(--acc);border:none;border-radius:4px;color:#000;cursor:pointer;font-weight:600;margin-top:6px}
     .gif-export-btn.show{display:block}
     .gif-export-btn:hover{background:var(--acc2)}
+    .frame-actions{display:none;gap:4px;margin-top:6px}
+    .frame-actions.show{display:flex}
+    .frame-actions button{flex:1;padding:6px 4px;font-size:9px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--txt2);cursor:pointer}
+    .frame-actions button:hover{border-color:var(--acc);color:var(--acc)}
+    .frame-actions button.del:hover{border-color:#c44;color:#c44}
 
     /* Export modal */
     .export-modal{background:var(--bg2);border:1px solid var(--brd);border-radius:8px;padding:16px 20px;min-width:280px;max-width:320px}
@@ -227,7 +232,12 @@
         <span>Frames</span>
       </div>
       <div class="frame-strip-scroll" id="frameScroll"></div>
+      <div class="frame-actions" id="frameActions">
+        <button class="del" onclick="deleteSelectedFrame()" title="Delete frame">Del</button>
+        <button onclick="replaceSelectedFrame()" title="Replace frame">Replace</button>
+      </div>
       <button class="gif-export-btn" id="gifExportBtn" onclick="showExportModal()">Export</button>
+      <input type="file" id="replaceInput" accept=".png,.jpg,.jpeg" style="display:none" onchange="handleReplaceFile(event)">
     </div>
 
     <!-- Left divider (for frame panel) -->
@@ -280,6 +290,12 @@
             </div>
             <label class="opt"><input type="checkbox" id="rb-trim" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Auto-trim edges</label>
             <label class="opt"><input type="checkbox" id="rb-edges" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Border only (preserve inner)</label>
+            <label class="opt"><input type="checkbox" id="rb-edgedetect" onchange="toggleEdgeDetect()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Feather edges (smoother cuts)</label>
+            <div class="tool-row" id="rb-edgeRow" style="display:none">
+              <label>Softness</label>
+              <input type="range" id="rb-edgestr" min="0" max="100" value="50" oninput="$('rb-edgestrV').textContent=this.value+'%'" onchange="schedulePreview()">
+              <span class="val" id="rb-edgestrV">50%</span>
+            </div>
           </div>
         </div>
       </div>
@@ -379,15 +395,21 @@
 
   <!-- Loading state -->
   <div class="ld" id="L"><div class="sp"></div><span id="lT">Processing...</span></div>
-  <!-- Log -->
-  <div class="log" id="G"></div>
-  <!-- Done state -->
-  <div class="dn" id="D">
+  <!-- Log with preview -->
+  <div class="log-container" id="LC">
+    <div class="log" id="G"></div>
+    <img class="log-preview" id="LP">
+  </div>
+</div>
+
+<!-- Done modal -->
+<div class="modal-overlay" id="doneModal">
+  <div class="done-modal" id="D">
     <h4 id="dT"></h4>
     <p id="dM"></p>
-    <div class="btns" style="width:100%;margin-top:8px">
+    <div class="done-btns">
       <button class="btn btn-g" onclick="reset()">Back</button>
-      <button class="btn" onclick="openOutputFolder()" id="openFolderBtn" style="display:none">Open Folder</button>
+      <button class="btn" onclick="openOutputFolder()" id="openFolderBtn">Open Folder</button>
       <button class="btn btn-p" onclick="PicLet.close()">Done</button>
     </div>
   </div>
@@ -399,6 +421,55 @@
     <div class="modal-msg" id="modalMsg"></div>
     <div class="modal-btns" id="modalBtns">
       <button class="modal-btn" onclick="hideModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Simplify GIF modal -->
+<div class="modal-overlay" id="simplifyModal" onclick="hideSimplifyModal(event)">
+  <div class="export-modal" onclick="event.stopPropagation()">
+    <h3>Large GIF Detected</h3>
+    <p style="font-size:11px;color:var(--txt2);margin-bottom:12px">
+      This GIF has <b id="simplifyFrameCount">0</b> frames which may be slow to process.
+      Would you like to simplify it by skipping frames?
+    </p>
+    <div class="export-options">
+      <label class="export-opt" onclick="selectSimplifyOption(1)">
+        <input type="radio" name="simplifyType" value="1">
+        <span class="radio"></span>
+        <div class="export-opt-content">
+          <div class="export-opt-title">Keep All Frames</div>
+          <div class="export-opt-desc">Use the original GIF as-is</div>
+        </div>
+      </label>
+      <label class="export-opt selected" onclick="selectSimplifyOption(2)">
+        <input type="radio" name="simplifyType" value="2" checked>
+        <span class="radio"></span>
+        <div class="export-opt-content">
+          <div class="export-opt-title">Skip Every 2nd Frame</div>
+          <div class="export-opt-desc" id="simplifyDesc2">Reduces to ~0 frames</div>
+        </div>
+      </label>
+      <label class="export-opt" onclick="selectSimplifyOption(3)">
+        <input type="radio" name="simplifyType" value="3">
+        <span class="radio"></span>
+        <div class="export-opt-content">
+          <div class="export-opt-title">Skip Every 3rd Frame</div>
+          <div class="export-opt-desc" id="simplifyDesc3">Reduces to ~0 frames</div>
+        </div>
+      </label>
+      <label class="export-opt" onclick="selectSimplifyOption(4)">
+        <input type="radio" name="simplifyType" value="4">
+        <span class="radio"></span>
+        <div class="export-opt-content">
+          <div class="export-opt-title">Skip Every 4th Frame</div>
+          <div class="export-opt-desc" id="simplifyDesc4">Reduces to ~0 frames</div>
+        </div>
+      </label>
+    </div>
+    <div class="export-modal-btns">
+      <button class="cancel" onclick="hideSimplifyModal()">Cancel</button>
+      <button class="confirm" onclick="confirmSimplify()">Continue</button>
     </div>
   </div>
 </div>
@@ -645,6 +716,16 @@ function toggleRatioLock() {
   schedulePreview();
 }
 
+function toggleEdgeDetect() {
+  const enabled = $('rb-edgedetect').checked;
+  $('rb-edgeRow').style.display = enabled ? 'flex' : 'none';
+  // Edge detect and preserve inner are mutually exclusive
+  if (enabled) {
+    $('rb-edges').checked = false;
+  }
+  schedulePreview();
+}
+
 // Get combined options for all active tools
 function getOptions() {
   const opts = { tools: Array.from(activeTools) };
@@ -653,7 +734,9 @@ function getOptions() {
     opts.removebg = {
       fuzz: +$('rb-fuzz').value,
       trim: $('rb-trim').checked,
-      preserveInner: $('rb-edges').checked
+      preserveInner: $('rb-edges').checked,
+      edgeDetect: $('rb-edgedetect').checked,
+      edgeStrength: +$('rb-edgestr').value
     };
   }
 
@@ -897,11 +980,24 @@ let isPlaying = false;
 let playInterval = null;
 let playSpeed = 100; // ms per frame
 
-function showFrameStrip() {
+function showFrameStrip(skipSimplifyCheck = false) {
+  // Check for large GIFs and offer to simplify
+  if (!skipSimplifyCheck && imageInfo.frameCount >= LARGE_GIF_THRESHOLD) {
+    checkForLargeGif(imageInfo.frameCount, () => {
+      // After simplification (or if user keeps all frames), show the strip
+      actuallyShowFrameStrip();
+    });
+    return;
+  }
+  actuallyShowFrameStrip();
+}
+
+function actuallyShowFrameStrip() {
   $('framePanel').classList.add('show');
   $('dividerLeft').classList.add('show');
   $('playControls').classList.add('show');
   $('gifExportBtn').classList.add('show');
+  $('frameActions').classList.add('show');
   $('frameCount').textContent = imageInfo.frameCount;
   selectedFrameIndex = 0;
   gifFrames = [];
@@ -914,6 +1010,7 @@ function hideFrameStrip() {
   $('dividerLeft').classList.remove('show');
   $('playControls').classList.remove('show');
   $('gifExportBtn').classList.remove('show');
+  $('frameActions').classList.remove('show');
   stopPlayback();
   gifFrames = [];
   framePreviewCache = {};
@@ -1178,8 +1275,9 @@ async function runExport(opts, message) {
   $('M').classList.add('hide');
   $('B').classList.add('hide');
   $('L').classList.add('on');
-  $('G').classList.add('on');
+  $('LC').classList.add('on');
   $('G').innerHTML = '';
+  $('LP').classList.remove('on');
   $('lT').textContent = message;
 
   try {
@@ -1187,10 +1285,199 @@ async function runExport(opts, message) {
     if (result.logs) {
       result.logs.forEach(l => log('G', l.type[0], l.message));
     }
+    // Try to show output preview
+    if (result.success) await showLogPreview();
     showDone(result.success, result.success ? 'Done' : 'Failed', result.success ? result.output : result.error);
   } catch (e) {
     log('G', 'e', e.message);
     showDone(false, 'Error', e.message);
+  }
+}
+
+// ── Frame Delete/Replace ──
+
+async function deleteSelectedFrame() {
+  if (!isGifFile || gifFrames.length <= 1) {
+    showAlert('Cannot delete the only frame');
+    return;
+  }
+
+  stopPlayback();
+
+  // Show loading on the frame
+  const thumb = document.querySelector(`.frame-thumb[data-index="${selectedFrameIndex}"]`);
+  if (thumb) thumb.classList.add('processing');
+
+  try {
+    const result = await postJson('/api/delete-frame', { frameIndex: selectedFrameIndex });
+
+    if (result.success) {
+      imageInfo.frameCount = result.frameCount;
+      $('frameCount').textContent = result.frameCount;
+
+      // Adjust selected index if needed
+      if (selectedFrameIndex >= result.frameCount) {
+        selectedFrameIndex = result.frameCount - 1;
+      }
+
+      // Reload frame thumbnails
+      gifFrames = [];
+      framePreviewCache = {};
+      loadFrameThumbnails();
+
+      // Show updated frame
+      setTimeout(() => selectFrame(selectedFrameIndex), 100);
+    } else {
+      if (thumb) thumb.classList.remove('processing');
+      showAlert('Failed to delete frame: ' + (result.error || 'Unknown error'));
+    }
+  } catch (err) {
+    if (thumb) thumb.classList.remove('processing');
+    showAlert('Failed to delete frame: ' + err.message);
+  }
+}
+
+function replaceSelectedFrame() {
+  if (!isGifFile) return;
+  $('replaceInput').click();
+}
+
+async function handleReplaceFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = ''; // Reset for future use
+
+  stopPlayback();
+
+  // Show loading on the frame
+  const thumb = document.querySelector(`.frame-thumb[data-index="${selectedFrameIndex}"]`);
+  if (thumb) thumb.classList.add('processing');
+
+  try {
+    // Read file as base64
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result.split(',')[1]; // Remove data URL prefix
+
+      const result = await postJson('/api/replace-frame', {
+        frameIndex: selectedFrameIndex,
+        imageData: base64
+      });
+
+      if (result.success) {
+        // Reload frame thumbnails
+        gifFrames = [];
+        framePreviewCache = {};
+        loadFrameThumbnails();
+
+        // Show updated frame
+        setTimeout(() => selectFrame(selectedFrameIndex), 100);
+      } else {
+        if (thumb) thumb.classList.remove('processing');
+        showAlert('Failed to replace frame: ' + (result.error || 'Unknown error'));
+      }
+    };
+    reader.readAsDataURL(file);
+  } catch (err) {
+    if (thumb) thumb.classList.remove('processing');
+    showAlert('Failed to replace frame: ' + err.message);
+  }
+}
+
+// ── GIF Simplification ──
+
+const LARGE_GIF_THRESHOLD = 50; // Frames threshold for showing simplify prompt
+let selectedSimplifyOption = 2; // Default to skip every 2nd frame
+let pendingSimplifyCallback = null;
+
+function checkForLargeGif(frameCount, callback) {
+  if (frameCount >= LARGE_GIF_THRESHOLD) {
+    showSimplifyModal(frameCount, callback);
+    return true;
+  }
+  if (callback) callback();
+  return false;
+}
+
+function showSimplifyModal(frameCount, callback) {
+  pendingSimplifyCallback = callback;
+
+  // Update modal content
+  $('simplifyFrameCount').textContent = frameCount;
+  $('simplifyDesc2').textContent = `Reduces to ~${Math.ceil(frameCount / 2)} frames`;
+  $('simplifyDesc3').textContent = `Reduces to ~${Math.ceil(frameCount / 3)} frames`;
+  $('simplifyDesc4').textContent = `Reduces to ~${Math.ceil(frameCount / 4)} frames`;
+
+  // Reset selection to skip every 2nd (recommended for most cases)
+  selectedSimplifyOption = 2;
+  document.querySelectorAll('#simplifyModal .export-opt').forEach(opt => {
+    const input = opt.querySelector('input');
+    opt.classList.toggle('selected', input.value === '2');
+    input.checked = input.value === '2';
+  });
+
+  $('simplifyModal').classList.add('on');
+}
+
+function hideSimplifyModal(e) {
+  if (!e || e.target === $('simplifyModal')) {
+    $('simplifyModal').classList.remove('on');
+    pendingSimplifyCallback = null;
+  }
+}
+
+function selectSimplifyOption(value) {
+  selectedSimplifyOption = value;
+  document.querySelectorAll('#simplifyModal .export-opt').forEach(opt => {
+    const input = opt.querySelector('input');
+    opt.classList.toggle('selected', +input.value === value);
+    input.checked = +input.value === value;
+  });
+}
+
+async function confirmSimplify() {
+  // Save callback before hiding modal (hideSimplifyModal clears it)
+  const callback = pendingSimplifyCallback;
+  hideSimplifyModal();
+
+  if (selectedSimplifyOption === 1) {
+    // Keep all frames - just continue
+    if (callback) callback();
+    return;
+  }
+
+  // Show loading state
+  pA.innerHTML = '<div class="mini-sp"></div>';
+  pI.textContent = 'Simplifying GIF...';
+
+  try {
+    const result = await postJson('/api/simplify-gif', { skipFactor: selectedSimplifyOption });
+
+    if (result.success) {
+      // Update image info with simplified version
+      imageInfo.width = result.width;
+      imageInfo.height = result.height;
+      imageInfo.frameCount = result.frameCount;
+
+      // Update display
+      $('origSize').textContent = imageInfo.width + '×' + imageInfo.height;
+
+      // Refresh frame strip (skip simplify check since we just simplified)
+      currentFrameCount = result.frameCount;
+      if (result.frameCount > 1) {
+        showFrameStrip(true); // Skip simplify check
+      } else {
+        hideFrameStrip();
+      }
+
+      if (callback) callback();
+    } else {
+      showAlert('Failed to simplify GIF: ' + (result.error || 'Unknown error'));
+      showOriginal();
+    }
+  } catch (err) {
+    showAlert('Failed to simplify GIF: ' + err.message);
+    showOriginal();
   }
 }
 
@@ -1373,8 +1660,9 @@ async function apply() {
   $('M').classList.add('hide');
   $('B').classList.add('hide');
   $('L').classList.add('on');
-  $('G').classList.add('on');
+  $('LC').classList.add('on');
   $('G').innerHTML = '';
+  $('LP').classList.remove('on');
 
   const toolNames = Array.from(activeTools).map(t => {
     const names = { removebg: 'Remove BG', scale: 'Scale', icons: 'Icons', storepack: 'Store Assets' };
@@ -1389,6 +1677,8 @@ async function apply() {
       result.logs.forEach(l => log('G', l.type[0], l.message));
     }
 
+    // Try to show output preview
+    if (result.success) await showLogPreview();
     showDone(result.success, result.success ? 'Done' : 'Failed', result.success ? result.output : result.error);
   } catch (e) {
     log('G', 'e', e.message);
@@ -1398,11 +1688,12 @@ async function apply() {
 
 // Reset to main view
 function reset() {
-  $('D').classList.remove('on', 'ok', 'err');
-  $('G').classList.remove('on');
+  $('doneModal').classList.remove('on');
+  $('D').classList.remove('ok', 'err');
+  $('LC').classList.remove('on');
+  $('LP').classList.remove('on');
   $('M').classList.remove('hide');
   $('B').classList.remove('hide');
-  $('openFolderBtn').style.display = 'none';
   lastOutputSuccess = false;
 }
 
@@ -1420,10 +1711,23 @@ function openOutputFolder() {
   postJson('/api/open-folder', {});
 }
 
-// Show done state with optional folder button
+// Show output preview thumbnail in log area
+async function showLogPreview() {
+  try {
+    const result = await fetchJson('/api/output-preview');
+    if (result.success && result.imageData) {
+      $('LP').src = result.imageData;
+      $('LP').classList.add('on');
+    }
+  } catch { /* ignore */ }
+}
+
+// Show done modal
 function showDone(success, title, message) {
   $('L').classList.remove('on');
-  $('D').classList.add('on', success ? 'ok' : 'err');
+  $('doneModal').classList.add('on');
+  $('D').classList.add(success ? 'ok' : 'err');
+  $('D').classList.remove(success ? 'err' : 'ok');
   $('dT').textContent = title;
   $('dM').textContent = message;
   lastOutputSuccess = success;

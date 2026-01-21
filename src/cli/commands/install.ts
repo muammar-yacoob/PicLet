@@ -65,9 +65,23 @@ export function registerInstallCommand(program: Command): void {
 				);
 			}
 
-			console.log(chalk.bold('\nUsage:'));
+			console.log(chalk.bold('\nContext Menu Usage:'));
 			console.log('  Right-click any supported image in Windows Explorer.');
 			console.log('  Multi-select supported for batch processing.');
+
+			console.log(chalk.bold('\nCLI Usage:'));
+			console.log(chalk.cyan('  piclet <image>') + chalk.dim('         Open GUI editor'));
+			console.log(chalk.cyan('  piclet makeicon <img>') + chalk.dim('  Convert to .ico'));
+			console.log(chalk.cyan('  piclet remove-bg <img>') + chalk.dim(' Remove background'));
+			console.log(chalk.cyan('  piclet scale <img>') + chalk.dim('     Resize image'));
+			console.log(chalk.cyan('  piclet iconpack <img>') + chalk.dim('  Generate icon pack'));
+			console.log(chalk.cyan('  piclet storepack <img>') + chalk.dim(' Generate store assets'));
+			console.log(chalk.cyan('  piclet transform <img>') + chalk.dim(' Rotate/flip image'));
+			console.log(chalk.cyan('  piclet filter <img>') + chalk.dim('    Apply filters'));
+			console.log(chalk.cyan('  piclet border <img>') + chalk.dim('    Add border'));
+			console.log(chalk.cyan('  piclet recolor <img>') + chalk.dim('   Replace colors'));
+			console.log(chalk.cyan('  piclet extract-frames <gif>') + chalk.dim(' Extract GIF frames'));
+			console.log(chalk.dim('\n  Run "piclet --help" for full documentation.'));
 			console.log();
 		});
 }

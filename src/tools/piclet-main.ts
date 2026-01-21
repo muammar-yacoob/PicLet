@@ -11,6 +11,7 @@ import {
 	cleanup,
 	createIco,
 	createIcoFromMultiple,
+	deleteGifFrame,
 	extractAllFrames,
 	extractFirstFrame,
 	getBorderColor,
@@ -19,10 +20,13 @@ import {
 	isMultiFrame,
 	removeBackground,
 	removeBackgroundBorderOnly,
+	removeBackgroundEdgeAware,
+	replaceGifFrame,
 	resize,
 	scaleFillCrop,
 	scaleToSize,
 	scaleWithPadding,
+	simplifyGif,
 	squarify,
 	trim,
 } from '../lib/magick.js';
@@ -57,7 +61,7 @@ interface Dimension {
 interface ToolOptions {
 	tools: string[];
 	original?: boolean;
-	removebg?: { fuzz: number; trim: boolean; preserveInner: boolean };
+	removebg?: { fuzz: number; trim: boolean; preserveInner: boolean; edgeDetect: boolean; edgeStrength: number };
 	scale?: { width: number; height: number; makeSquare: boolean };
 	icons?: {
 		trim: boolean;
@@ -139,7 +143,10 @@ async function generateCombinedPreview(
 					const out = makeTempPath('removebg');
 					let success = false;
 
-					if (rbOpts.preserveInner && borderColor) {
+					if (rbOpts.edgeDetect && borderColor) {
+						// Use edge feathering for smoother cutouts
+						success = await removeBackgroundEdgeAware(current, out, borderColor, rbOpts.fuzz, rbOpts.edgeStrength);
+					} else if (rbOpts.preserveInner && borderColor) {
 						success = await removeBackgroundBorderOnly(current, out, borderColor, rbOpts.fuzz);
 					}
 					if (!success && borderColor) {
@@ -240,15 +247,21 @@ async function generateCombinedPreview(
 // Process - Chains enabled tools and produces output
 // ─────────────────────────────────────────────────────────────────────────────
 
+interface ProcessedResult {
+	outputs: string[];
+	singleFilePath?: string; // Full path if single file output (for preview)
+}
+
 async function processCombined(
 	input: string,
 	borderColor: string | null,
 	opts: ToolOptions,
 	logs: Array<{ type: string; message: string }>,
-): Promise<string[]> {
+): Promise<ProcessedResult> {
 	const fileInfo = getFileInfo(input);
 	const outputs: string[] = [];
 	const temps: string[] = [];
+	let singleFilePath: string | undefined;
 	// Preserve GIF extension for animated files, use PNG for others
 	const outputExt = fileInfo.extension.toLowerCase() === '.gif' ? '.gif' : '.png';
 
@@ -269,7 +282,13 @@ async function processCombined(
 				const out = makeTempPath('nobg');
 				let success = false;
 
-				if (rbOpts.preserveInner && borderColor) {
+				if (rbOpts.edgeDetect && borderColor) {
+					logs.push({ type: 'info', message: 'Using edge feathering...' });
+					success = await removeBackgroundEdgeAware(current, out, borderColor, rbOpts.fuzz, rbOpts.edgeStrength);
+					if (!success) {
+						logs.push({ type: 'warn', message: 'Edge feathering failed, trying standard removal' });
+					}
+				} else if (rbOpts.preserveInner && borderColor) {
 					success = await removeBackgroundBorderOnly(current, out, borderColor, rbOpts.fuzz);
 					if (!success) {
 						logs.push({ type: 'warn', message: 'Border-only failed, trying full removal' });
@@ -281,7 +300,7 @@ async function processCombined(
 				if (!success) {
 					logs.push({ type: 'error', message: 'Background removal failed' });
 					cleanup(...temps);
-					return [];
+					return { outputs: [] };
 				}
 				logs.push({ type: 'success', message: 'Background removed' });
 
@@ -306,6 +325,7 @@ async function processCombined(
 					renameSync(current, finalOut);
 					temps.splice(temps.indexOf(current), 1);
 					outputs.push(basename(finalOut));
+					singleFilePath = finalOut;
 				}
 				break;
 			}
@@ -326,7 +346,7 @@ async function processCombined(
 				if (!success) {
 					logs.push({ type: 'error', message: 'Scale failed' });
 					cleanup(...temps);
-					return [];
+					return { outputs: [] };
 				}
 
 				const dims = await getDimensions(out);
@@ -345,6 +365,7 @@ async function processCombined(
 					renameSync(current, finalOut);
 					temps.splice(temps.indexOf(current), 1);
 					outputs.push(basename(finalOut));
+					singleFilePath = finalOut;
 				}
 				break;
 			}
@@ -356,7 +377,7 @@ async function processCombined(
 				// Need at least one output format
 				if (!icOpts.ico && !icOpts.web && !icOpts.android && !icOpts.ios) {
 					logs.push({ type: 'error', message: 'No output format selected' });
-					return [];
+					return { outputs: [] };
 				}
 
 				// Prepare source - apply trim and squarify
@@ -387,7 +408,7 @@ async function processCombined(
 				if (!(await scaleToSize(iconSource, srcTemp, maxSize))) {
 					logs.push({ type: 'error', message: 'Failed to prepare icon source' });
 					cleanup(...temps);
-					return [];
+					return { outputs: [] };
 				}
 				if (iconSource !== current && iconSource !== input) cleanup(iconSource);
 
@@ -484,7 +505,7 @@ async function processCombined(
 
 				if (!spOpts.dimensions || spOpts.dimensions.length === 0) {
 					logs.push({ type: 'error', message: 'No dimensions specified' });
-					return [];
+					return { outputs: [] };
 				}
 
 				const folderName = spOpts.presetName || 'assets';
@@ -519,7 +540,7 @@ async function processCombined(
 
 	// Cleanup any remaining temps
 	cleanup(...temps);
-	return outputs;
+	return { outputs, singleFilePath };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -737,12 +758,13 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 				};
 			}
 
-			const outputs = await processCombined(currentInput, currentBorderColor, toolOpts, logs);
+			const result = await processCombined(currentInput, currentBorderColor, toolOpts, logs);
 
-			if (outputs.length > 0) {
+			if (result.outputs.length > 0) {
 				return {
 					success: true,
-					output: outputs.join('\n'),
+					output: result.outputs.join('\n'),
+					outputPath: result.singleFilePath,
 					logs,
 				};
 			}
@@ -791,6 +813,83 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			if (!toolOpts.tools) toolOpts.tools = [];
 			return generateFramePreview(frameIndex, toolOpts);
 		},
+		onSimplifyGif: async (skipFactor) => {
+			try {
+				// Create simplified GIF in temp location
+				const tempPath = join(tmpdir(), `piclet-simplified-${Date.now()}.gif`);
+				const result = await simplifyGif(currentInput, tempPath, skipFactor);
+
+				if (!result.success) {
+					return { success: false, error: 'Failed to simplify GIF' };
+				}
+
+				// Get dimensions of simplified GIF
+				const newDims = await getDimensions(tempPath);
+				if (!newDims) {
+					cleanup(tempPath);
+					return { success: false, error: 'Failed to read simplified GIF dimensions' };
+				}
+
+				// Update current input to the simplified version
+				currentInput = tempPath;
+				currentFrameCount = result.frameCount ?? 1;
+
+				return {
+					success: true,
+					filePath: tempPath,
+					fileName: basename(currentInput),
+					width: newDims[0],
+					height: newDims[1],
+					frameCount: currentFrameCount,
+				};
+			} catch (err) {
+				return { success: false, error: (err as Error).message };
+			}
+		},
+		onDeleteFrame: async (frameIndex) => {
+			try {
+				const tempPath = join(tmpdir(), `piclet-edited-${Date.now()}.gif`);
+				const result = await deleteGifFrame(currentInput, tempPath, frameIndex);
+
+				if (!result.success) {
+					return { success: false, error: 'Failed to delete frame' };
+				}
+
+				// Update current input
+				currentInput = tempPath;
+				currentFrameCount = result.frameCount ?? 1;
+
+				return { success: true, frameCount: currentFrameCount };
+			} catch (err) {
+				return { success: false, error: (err as Error).message };
+			}
+		},
+		onReplaceFrame: async (frameIndex, imageData) => {
+			try {
+				// Save base64 image data to temp file
+				const buffer = Buffer.from(imageData, 'base64');
+				const tempImagePath = join(tmpdir(), `piclet-replace-${Date.now()}.png`);
+				writeFileSync(tempImagePath, buffer);
+
+				const tempPath = join(tmpdir(), `piclet-edited-${Date.now()}.gif`);
+				const result = await replaceGifFrame(currentInput, tempPath, frameIndex, tempImagePath);
+
+				// Cleanup temp image
+				cleanup(tempImagePath);
+
+				if (!result.success) {
+					return { success: false, error: 'Failed to replace frame' };
+				}
+
+				// Update current input
+				currentInput = tempPath;
+				currentFrameCount = result.frameCount ?? currentFrameCount;
+
+				return { success: true, frameCount: currentFrameCount };
+			} catch (err) {
+				return { success: false, error: (err as Error).message };
+			}
+		},
 	});
 }
 
@@ -803,7 +902,7 @@ async function processGifExport(
 	borderColor: string | null,
 	opts: ToolOptions & { exportMode?: string; frameIndex?: number },
 	logs: Array<{ type: string; message: string }>,
-): Promise<{ success: boolean; output?: string; error?: string; logs: Array<{ type: string; message: string }> }> {
+): Promise<{ success: boolean; output?: string; outputPath?: string; error?: string; logs: Array<{ type: string; message: string }> }> {
 	if (!(await checkImageMagick())) {
 		return {
 			success: false,
@@ -832,10 +931,10 @@ async function processGifExport(
 			let outputFile = frameFile;
 			if (opts.tools && opts.tools.length > 0) {
 				const processedLogs: Array<{ type: string; message: string }> = [];
-				const outputs = await processCombined(frameFile, borderColor, opts, processedLogs);
+				const result = await processCombined(frameFile, borderColor, opts, processedLogs);
 				logs.push(...processedLogs);
 
-				if (outputs.length === 0) {
+				if (result.outputs.length === 0) {
 					cleanup(frameFile);
 					return { success: false, error: 'Processing failed', logs };
 				}
@@ -884,10 +983,10 @@ async function processGifExport(
 			logs.push({ type: 'info', message: 'Processing GIF...' });
 
 			// Use standard processing which handles GIFs with -coalesce
-			const outputs = await processCombined(input, borderColor, opts, logs);
+			const result = await processCombined(input, borderColor, opts, logs);
 
-			if (outputs.length > 0) {
-				return { success: true, output: outputs.join('\n'), logs };
+			if (result.outputs.length > 0) {
+				return { success: true, output: result.outputs.join('\n'), outputPath: result.singleFilePath, logs };
 			}
 
 			return { success: false, error: 'Processing failed', logs };

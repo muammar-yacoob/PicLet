@@ -42,13 +42,13 @@
 <tr>
 <td align="center"><img src="src/icons/makeicon.ico" width="48" alt="Make Icon"></td>
 <td><strong>Make Icon</strong><br>Convert images to ICO with multiple resolutions (256, 128, 64, 48, 32, 16)</td>
-<td>PNG</td>
+<td>PNG, GIF*</td>
 <td>CLI, GUI, Web</td>
 </tr>
 <tr>
 <td align="center"><img src="src/icons/removebg.ico" width="48" alt="Remove BG"></td>
 <td><strong>Remove Background</strong><br>Remove solid backgrounds with configurable fuzz tolerance</td>
-<td>PNG</td>
+<td>PNG, GIF</td>
 <td>CLI, GUI, Web</td>
 </tr>
 <tr>
@@ -60,17 +60,38 @@
 <tr>
 <td align="center"><img src="src/icons/iconpack.ico" width="48" alt="Icon Pack"></td>
 <td><strong>Icon Pack</strong><br>Generate complete icon sets for Web, Android, and iOS</td>
-<td>PNG, JPG</td>
+<td>PNG, JPG, GIF*</td>
 <td>CLI, GUI, Web</td>
 </tr>
 <tr>
 <td align="center"><img src="src/icons/storepack.ico" width="48" alt="Store Assets"></td>
 <td><strong>Store Assets</strong><br>Generate graphics for Steam, itch.io, Unity Asset Store, and app stores</td>
-<td>PNG, JPG</td>
+<td>PNG, JPG, GIF</td>
 <td>GUI, Web</td>
+</tr>
+<tr>
+<td align="center"><img src="src/icons/banana.ico" width="48" alt="Extract Frames"></td>
+<td><strong>Extract Frames</strong><br>Extract individual frames from animated GIFs</td>
+<td>GIF</td>
+<td>CLI, GUI</td>
 </tr>
 </tbody>
 </table>
+
+<sub>*For GIFs, uses selected frame or first frame</sub>
+
+### Animated GIF Support
+
+When you load an animated GIF in the GUI, PicLet provides:
+
+- **Frame Strip** - Vertical panel showing all frames as thumbnails
+- **Frame Selection** - Click any frame to preview and apply tools to it
+- **Animation Playback** - Play/pause with adjustable speed (0.5x to 3x)
+- **Live Preview** - See tool effects applied to all frames in real-time
+- **Flexible Export**:
+  - **Single Frame** - Export selected frame as PNG
+  - **All Frames** - Export all frames as individual PNGs
+  - **Processed GIF** - Export as animated GIF with all effects applied
 
 ---
 
@@ -129,6 +150,9 @@ piclet iconpack app-icon.png
 
 # Open GUI with store assets preset
 piclet storepack image.png
+
+# Extract frames from animated GIF
+piclet frames animation.gif
 ```
 
 <div align="center">
