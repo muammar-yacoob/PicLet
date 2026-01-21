@@ -1,6 +1,6 @@
 {
 	"name": "@spark-apps/piclet",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "Lightweight image tools for content creators",
 	"type": "module",
 	"bin": {
