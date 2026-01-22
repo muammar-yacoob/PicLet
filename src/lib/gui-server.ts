@@ -2,8 +2,9 @@
  * GUI Server - Serves HTML interface and handles API calls
  */
 import { spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { dirname, join } from 'node:path';
+import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { deletePreset, savePreset, type Preset } from './presets.js';
@@ -368,14 +369,12 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 				return;
 			}
 			try {
-				const fs = require('node:fs');
-				const path = require('node:path');
-				if (!fs.existsSync(outputPath)) {
+				if (!existsSync(outputPath)) {
 					res.json({ success: false, error: 'Output file not found' });
 					return;
 				}
-				const buffer = fs.readFileSync(outputPath);
-				const ext = path.extname(outputPath).toLowerCase();
+				const buffer = readFileSync(outputPath);
+				const ext = extname(outputPath).toLowerCase();
 				const mimeTypes: Record<string, string> = {
 					'.png': 'image/png',
 					'.jpg': 'image/jpeg',

@@ -400,13 +400,14 @@
     <div class="log" id="G"></div>
     <img class="log-preview" id="LP">
   </div>
-</div>
-
-<!-- Done modal -->
-<div class="modal-overlay" id="doneModal">
-  <div class="done-modal" id="D">
-    <h4 id="dT"></h4>
-    <p id="dM"></p>
+  <!-- Done state (replaces log container) -->
+  <div class="done-container" id="DC">
+    <div class="done-preview" id="donePreview"></div>
+    <div class="done-logs" id="doneLogs"></div>
+    <div class="done-result">
+      <h4 id="dT"></h4>
+      <p id="dM"></p>
+    </div>
     <div class="done-btns">
       <button class="btn btn-g" onclick="reset()">Back</button>
       <button class="btn" onclick="openOutputFolder()" id="openFolderBtn">Open Folder</button>
@@ -1285,12 +1286,11 @@ async function runExport(opts, message) {
     if (result.logs) {
       result.logs.forEach(l => log('G', l.type[0], l.message));
     }
-    // Try to show output preview
-    if (result.success) await showLogPreview();
-    showDone(result.success, result.success ? 'Done' : 'Failed', result.success ? result.output : result.error);
+    // Show done state with preview
+    await showDone(result.success, result.success ? 'Done' : 'Failed', result.success ? result.output : result.error);
   } catch (e) {
     log('G', 'e', e.message);
-    showDone(false, 'Error', e.message);
+    await showDone(false, 'Error', e.message);
   }
 }
 
@@ -1677,19 +1677,18 @@ async function apply() {
       result.logs.forEach(l => log('G', l.type[0], l.message));
     }
 
-    // Try to show output preview
-    if (result.success) await showLogPreview();
-    showDone(result.success, result.success ? 'Done' : 'Failed', result.success ? result.output : result.error);
+    // Show done state with preview
+    await showDone(result.success, result.success ? 'Done' : 'Failed', result.success ? result.output : result.error);
   } catch (e) {
     log('G', 'e', e.message);
-    showDone(false, 'Error', e.message);
+    await showDone(false, 'Error', e.message);
   }
 }
 
 // Reset to main view
 function reset() {
-  $('doneModal').classList.remove('on');
-  $('D').classList.remove('ok', 'err');
+  $('DC').classList.remove('on', 'ok', 'err');
+  $('donePreview').classList.remove('on');
   $('LC').classList.remove('on');
   $('LP').classList.remove('on');
   $('M').classList.remove('hide');
@@ -1722,17 +1721,42 @@ async function showLogPreview() {
   } catch { /* ignore */ }
 }
 
-// Show done modal
-function showDone(success, title, message) {
+// Show done state (replaces log container)
+async function showDone(success, title, message) {
   $('L').classList.remove('on');
-  $('doneModal').classList.add('on');
-  $('D').classList.add(success ? 'ok' : 'err');
-  $('D').classList.remove(success ? 'err' : 'ok');
+  $('LC').classList.remove('on'); // Hide log container
+  $('DC').classList.add('on', success ? 'ok' : 'err');
+  $('DC').classList.remove(success ? 'err' : 'ok');
   $('dT').textContent = title;
   $('dM').textContent = message;
   lastOutputSuccess = success;
   $('openFolderBtn').style.display = success ? '' : 'none';
   if (success) hasChanges = false;
+
+  // Copy logs to done container
+  $('doneLogs').innerHTML = $('G').innerHTML;
+
+  // Fetch and show thumbnail
+  const donePreview = $('donePreview');
+  if (success) {
+    try {
+      const result = await fetchJson('/api/output-preview');
+      if (result.success && result.imageData) {
+        donePreview.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = result.imageData;
+        img.alt = 'Output';
+        donePreview.appendChild(img);
+      } else {
+        // Show error in preview area
+        donePreview.innerHTML = `<span style="color:var(--err);font-size:10px;z-index:1;position:relative">${result.error || 'No preview'}</span>`;
+      }
+    } catch (e) {
+      donePreview.innerHTML = `<span style="color:var(--err);font-size:10px;z-index:1;position:relative">Error: ${e.message}</span>`;
+    }
+  } else {
+    donePreview.innerHTML = '';
+  }
 }
 
 // Init

@@ -1,4 +1,5 @@
-import { basename, dirname, extname, resolve } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { basename, dirname, extname, join, resolve } from 'node:path';
 
 /**
  * Convert Windows path to WSL path
@@ -70,7 +71,32 @@ export function getFileInfo(filePath: string): FileInfo {
 }
 
 /**
- * Generate output path with suffix
+ * Get the PicLet output directory for a given input file.
+ * Creates a "PicLet" subdirectory in the same folder as the input.
+ * Avoids nesting (won't create PicLet/PicLet).
+ */
+export function getOutputDir(inputPath: string): string {
+	const dir = dirname(inputPath);
+	// Avoid nesting if already in a PicLet directory
+	if (basename(dir) === 'PicLet') {
+		return dir;
+	}
+	return join(dir, 'PicLet');
+}
+
+/**
+ * Ensure the PicLet output directory exists
+ */
+export function ensureOutputDir(inputPath: string): string {
+	const outDir = getOutputDir(inputPath);
+	if (!existsSync(outDir)) {
+		mkdirSync(outDir, { recursive: true });
+	}
+	return outDir;
+}
+
+/**
+ * Generate output path with suffix in PicLet subdirectory
  */
 export function getOutputPath(
 	inputPath: string,
@@ -78,6 +104,7 @@ export function getOutputPath(
 	newExtension?: string,
 ): string {
 	const info = getFileInfo(inputPath);
+	const outDir = getOutputDir(inputPath);
 	const ext = newExtension ?? info.extension;
-	return `${info.dirname}/${info.filename}${suffix}${ext}`;
+	return join(outDir, `${info.filename}${suffix}${ext}`);
 }

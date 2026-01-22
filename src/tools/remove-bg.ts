@@ -261,18 +261,13 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			return generatePreview(input, borderColor, options);
 		},
 		onProcess: async (opts) => {
-			const logs: Array<{ type: string; message: string }> = [];
-
 			// Check dependencies
 			if (!(await checkImageMagick())) {
 				return {
 					success: false,
 					error: 'ImageMagick not found',
-					logs: [{ type: 'error', message: 'ImageMagick not found. Install with: sudo apt install imagemagick' }],
 				};
 			}
-
-			logs.push({ type: 'info', message: `Processing ${basename(input)}...` });
 
 			const options: ProcessOptions = {
 				fuzz: (opts.fuzz as number) ?? defaults.fuzz,
@@ -282,27 +277,32 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			};
 
 			const fileInfo = getFileInfo(input);
-			const output = `${fileInfo.dirname}/${fileInfo.filename}_nobg.png`;
+			const outputExt = fileInfo.extension.toLowerCase() === '.gif' ? '.gif' : '.png';
+			const output = `${fileInfo.dirname}/${fileInfo.filename}_nobg${outputExt}`;
 
 			// Process the image
-			logs.push({ type: 'info', message: 'Removing background...' });
-
+			const logs: Array<{ type: string; message: string }> = [];
 			const success = await processImageSilent(input, borderColor, options, logs);
 
-			if (success) {
+			if (success && existsSync(output)) {
 				const finalDims = await getDimensions(output);
 				const sizeStr = finalDims ? ` (${finalDims[0]}x${finalDims[1]})` : '';
+
+				// Read output as base64 for thumbnail
+				const buffer = readFileSync(output);
+				const mimeType = outputExt === '.gif' ? 'image/gif' : 'image/png';
+				const imageData = `data:${mimeType};base64,${buffer.toString('base64')}`;
+
 				return {
 					success: true,
 					output: `${basename(output)}${sizeStr}`,
-					logs,
+					imageData,
 				};
 			}
 
 			return {
 				success: false,
 				error: 'Processing failed',
-				logs,
 			};
 		},
 	});

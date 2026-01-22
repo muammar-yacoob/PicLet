@@ -30,7 +30,7 @@ import {
 	squarify,
 	trim,
 } from '../lib/magick.js';
-import { getFileInfo, normalizePath } from '../lib/paths.js';
+import { ensureOutputDir, getFileInfo, getOutputDir, normalizePath } from '../lib/paths.js';
 import { loadPresets } from '../lib/presets.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -321,7 +321,8 @@ async function processCombined(
 
 				// If this is the last tool, save output
 				if (activeTools.indexOf(tool) === activeTools.length - 1) {
-					const finalOut = `${fileInfo.dirname}/${fileInfo.filename}_nobg${outputExt}`;
+					const outDir = ensureOutputDir(input);
+					const finalOut = join(outDir, `${fileInfo.filename}_nobg${outputExt}`);
 					renameSync(current, finalOut);
 					temps.splice(temps.indexOf(current), 1);
 					outputs.push(basename(finalOut));
@@ -361,7 +362,8 @@ async function processCombined(
 
 				// If this is the last tool, save output
 				if (activeTools.indexOf(tool) === activeTools.length - 1) {
-					const finalOut = `${fileInfo.dirname}/${fileInfo.filename}_scaled${outputExt}`;
+					const outDir = ensureOutputDir(input);
+					const finalOut = join(outDir, `${fileInfo.filename}_scaled${outputExt}`);
 					renameSync(current, finalOut);
 					temps.splice(temps.indexOf(current), 1);
 					outputs.push(basename(finalOut));
@@ -417,7 +419,8 @@ async function processCombined(
 				// Generate ICO file
 				if (icOpts.ico) {
 					logs.push({ type: 'info', message: 'Creating ICO file...' });
-					const icoOut = `${fileInfo.dirname}/${fileInfo.filename}.ico`;
+					const outDir = ensureOutputDir(input);
+					const icoOut = join(outDir, `${fileInfo.filename}.ico`);
 					if (await createIco(srcTemp, icoOut)) {
 						logs.push({ type: 'success', message: 'ICO: 6 sizes (256, 128, 64, 48, 32, 16)' });
 						outputs.push(basename(icoOut));
@@ -430,7 +433,8 @@ async function processCombined(
 				// Generate icon packs (Web, Android, iOS)
 				const needsPacks = icOpts.web || icOpts.android || icOpts.ios;
 				if (needsPacks) {
-					const outputDir = `${fileInfo.dirname}/${fileInfo.filename}_icons`;
+					const outDir = ensureOutputDir(input);
+					const outputDir = join(outDir, `${fileInfo.filename}_icons`);
 					mkdirSync(outputDir, { recursive: true });
 
 					if (icOpts.web) {
@@ -509,7 +513,8 @@ async function processCombined(
 				}
 
 				const folderName = spOpts.presetName || 'assets';
-				const outputDir = `${fileInfo.dirname}/${fileInfo.filename}_${folderName}`;
+				const outDir = ensureOutputDir(input);
+				const outputDir = join(outDir, `${fileInfo.filename}_${folderName}`);
 				mkdirSync(outputDir, { recursive: true });
 
 				let count = 0;
@@ -941,7 +946,8 @@ async function processGifExport(
 			}
 
 			// Move to final location
-			const finalOutput = `${fileInfo.dirname}/${fileInfo.filename}_frame${frameIndex + 1}.png`;
+			const frameOutDir = ensureOutputDir(input);
+			const finalOutput = join(frameOutDir, `${fileInfo.filename}_frame${frameIndex + 1}.png`);
 			if (outputFile === frameFile) {
 				renameSync(frameFile, finalOutput);
 			}
@@ -954,7 +960,8 @@ async function processGifExport(
 			// Export all frames as PNGs
 			logs.push({ type: 'info', message: 'Extracting all frames...' });
 
-			const outputDir = `${fileInfo.dirname}/${fileInfo.filename}_frames`;
+			const framesOutDir = ensureOutputDir(input);
+			const outputDir = join(framesOutDir, `${fileInfo.filename}_frames`);
 			mkdirSync(outputDir, { recursive: true });
 
 			const frames = await extractAllFrames(input, outputDir, 'frame');

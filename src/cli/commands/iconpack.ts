@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import type { Command } from 'commander';
 import * as iconpack from '../../tools/iconpack.js';
+import { picletTool } from '../tools.js';
 import { runToolOnFiles, validateExtensions } from '../utils.js';
 
 export function registerIconpackCommand(program: Command): void {
@@ -10,7 +11,7 @@ export function registerIconpackCommand(program: Command): void {
 		.option('-y, --yes', 'Use defaults, skip prompts')
 		.option('-g, --gui', 'Use GUI for options')
 		.action(async (files: string[], options: { yes?: boolean; gui?: boolean }) => {
-			// GUI mode
+			// GUI mode - open unified PicLet interface
 			if (options.gui) {
 				const { valid, invalid } = validateExtensions(files, iconpack.config.extensions);
 				if (invalid.length > 0) {
@@ -22,7 +23,7 @@ export function registerIconpackCommand(program: Command): void {
 				if (valid.length === 0) {
 					process.exit(1);
 				}
-				const result = await iconpack.runGUI(valid[0]);
+				const result = await picletTool.runGUI(valid[0]);
 				process.exit(result ? 0 : 1);
 			}
 

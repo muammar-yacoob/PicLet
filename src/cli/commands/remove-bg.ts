@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import type { Command } from 'commander';
 import { clearOverrides, setOverrides } from '../../lib/prompts.js';
 import * as removeBg from '../../tools/remove-bg.js';
+import { picletTool } from '../tools.js';
 import { runToolOnFiles, validateExtensions } from '../utils.js';
 
 export function registerRemoveBgCommand(program: Command): void {
@@ -17,7 +18,7 @@ export function registerRemoveBgCommand(program: Command): void {
 		.option('-p, --preserve-inner', 'Preserve inner areas of same color')
 		.option('-s, --square', 'Make output square with padding')
 		.action(async (files: string[], options: { yes?: boolean; gui?: boolean; fuzz?: string; trim?: boolean; preserveInner?: boolean; square?: boolean }) => {
-			// GUI mode - open HTML interface in browser
+			// GUI mode - open unified PicLet interface
 			if (options.gui) {
 				const { valid, invalid } = validateExtensions(files, removeBg.config.extensions);
 				if (invalid.length > 0) {
@@ -29,8 +30,7 @@ export function registerRemoveBgCommand(program: Command): void {
 				if (valid.length === 0) {
 					process.exit(1);
 				}
-				// Only process first file in GUI mode
-				const result = await removeBg.runGUI(valid[0]);
+				const result = await picletTool.runGUI(valid[0]);
 				process.exit(result ? 0 : 1);
 			}
 
