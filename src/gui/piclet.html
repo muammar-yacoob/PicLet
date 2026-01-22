@@ -781,18 +781,7 @@ function schedulePreview() {
 
 // Show original image
 async function showOriginal() {
-  // For GIFs with frames loaded, show selected frame directly
-  if (isGifFile && gifFrames.length > 0 && gifFrames[selectedFrameIndex]) {
-    const frame = gifFrames[selectedFrameIndex];
-    pA.innerHTML = '';
-    const img = document.createElement('img');
-    img.src = frame.thumbnail;
-    pA.appendChild(img);
-    pI.textContent = `${imageInfo.width} × ${imageInfo.height} (Frame ${selectedFrameIndex + 1} of ${imageInfo.frameCount})`;
-    updateZoom();
-    return;
-  }
-
+  // Always fetch full-scale preview from API (not the 96px thumbnails)
   pA.innerHTML = '<div class="mini-sp"></div>';
   try {
     const opts = { tools: [], original: true };
@@ -807,7 +796,7 @@ async function showOriginal() {
       pA.appendChild(img);
       const frameInfo = isGifFile && imageInfo.frameCount > 1 ? ` (Frame ${selectedFrameIndex + 1} of ${imageInfo.frameCount})` : '';
       pI.textContent = `${imageInfo.width} × ${imageInfo.height}${frameInfo}`;
-      updateZoom(); // Apply current zoom
+      updateZoom();
     }
   } catch (e) {
     pA.innerHTML = '<span class="placeholder">Failed to load image</span>';
@@ -1123,16 +1112,18 @@ function updatePlaybackFrame() {
     thumb.classList.toggle('selected', i === selectedFrameIndex);
   });
 
-  // Update main preview
-  const frame = gifFrames[selectedFrameIndex];
-  if (frame && frame.thumbnail) {
+  // Get the frame image from the strip (includes applied effects if active)
+  const frameThumb = document.querySelector(`.frame-thumb[data-index="${selectedFrameIndex}"] img`);
+  const frameSrc = frameThumb?.src || (gifFrames[selectedFrameIndex]?.thumbnail);
+
+  if (frameSrc) {
     const img = pA.querySelector('img');
     if (img) {
-      img.src = frame.thumbnail;
+      img.src = frameSrc;
     } else {
       pA.innerHTML = '';
       const newImg = document.createElement('img');
-      newImg.src = frame.thumbnail;
+      newImg.src = frameSrc;
       pA.appendChild(newImg);
       updateZoom();
     }
@@ -1188,16 +1179,8 @@ function selectFrame(index) {
 
 async function showSelectedFrame() {
   if (activeTools.size === 0) {
-    // Show original frame
-    const frame = gifFrames[selectedFrameIndex];
-    if (frame && frame.thumbnail) {
-      pA.innerHTML = '';
-      const img = document.createElement('img');
-      img.src = frame.thumbnail;
-      pA.appendChild(img);
-      pI.textContent = `Frame ${selectedFrameIndex + 1} of ${imageInfo.frameCount}`;
-      updateZoom();
-    }
+    // Fetch full-scale frame from API
+    showOriginal();
   } else {
     // Regenerate preview for selected frame
     generatePreview();
@@ -1762,6 +1745,22 @@ async function showDone(success, title, message) {
 // Init
 setupDragDrop();
 setupDivider();
+
+// Spacebar to toggle GIF playback
+document.addEventListener('keydown', (e) => {
+  // Only handle space if not typing in an input
+  if (e.code === 'Space' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+    if (isGifFile && gifFrames.length > 1) {
+      e.preventDefault();
+      const wasPlaying = isPlaying;
+      togglePlayback();
+      // When stopping, refresh to full-scale preview
+      if (wasPlaying) {
+        showSelectedFrame();
+      }
+    }
+  }
+});
 
 // Resizable dividers
 function setupDivider() {
