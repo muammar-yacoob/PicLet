@@ -1736,6 +1736,15 @@ async function confirmSimplify() {
       imageInfo.height = result.height;
       imageInfo.frameCount = result.frameCount;
 
+      // Update delay (compensated for skipped frames)
+      if (result.originalDelayMs) {
+        originalImportedDelayMs = result.originalDelayMs;
+        imageInfo.originalDelayMs = result.originalDelayMs;
+        // Reset playback speed to 1× with new delay
+        playSpeed = originalImportedDelayMs;
+        $('playSpeed').value = '1';
+      }
+
       // Update display
       $('origSize').textContent = imageInfo.width + '×' + imageInfo.height;
 

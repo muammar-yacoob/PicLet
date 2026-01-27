@@ -863,6 +863,9 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 					return { success: false, error: 'Failed to read simplified GIF dimensions' };
 				}
 
+				// Get the new delay (already adjusted by simplifyGif)
+				const newDelayMs = (await getGifDelay(tempPath)) * 10;
+
 				// Update current input to the simplified version
 				currentInput = tempPath;
 				currentFrameCount = result.frameCount ?? 1;
@@ -874,6 +877,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 					width: newDims[0],
 					height: newDims[1],
 					frameCount: currentFrameCount,
+					originalDelayMs: newDelayMs,
 				};
 			} catch (err) {
 				return { success: false, error: (err as Error).message };
