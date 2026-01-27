@@ -41,6 +41,10 @@
   // Failsafe timeout
   setTimeout(function() { window.close(); }, 10000);
 
+  // Keep loading window visible at least 1 second
+  var minShowMs = 1000;
+  var startTime = new Date().getTime();
+
   // Poll for ready signal file
   var fso = new ActiveXObject("Scripting.FileSystemObject");
   var shell = new ActiveXObject("WScript.Shell");
@@ -50,7 +54,13 @@
     if (!closing && fso.FileExists(readyFile)) {
       closing = true;
       try { fso.DeleteFile(readyFile); } catch(e) {}
-      window.close();
+      var elapsed = new Date().getTime() - startTime;
+      var wait = Math.max(0, minShowMs - elapsed);
+      if (wait > 0) {
+        setTimeout(function() { window.close(); }, wait);
+      } else {
+        window.close();
+      }
     }
   }, 50);
 

@@ -6,6 +6,7 @@
   <title>PicLet</title>
   <link rel="stylesheet" href="/css/theme.css">
   <script src="/js/piclet.js"></script>
+  <script src="/lottie-player.js"></script>
   <style>
     .app{display:flex;flex-direction:column;height:100%}
     .main{display:flex;flex:1;gap:12px;overflow:hidden;margin-top:10px}
@@ -190,6 +191,25 @@
     .export-modal-btns .cancel:hover{border-color:var(--acc)}
     .export-modal-btns .confirm{background:var(--acc);border:none;color:#000}
     .export-modal-btns .confirm:hover{background:var(--acc2)}
+    /* Speed slider modal */
+    .speed-slider-container{margin-bottom:16px}
+    .speed-slider-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--txt3);margin-bottom:6px}
+    .speed-slider-track{position:relative;padding:8px 0}
+    .speed-slider-track input[type="range"]{width:100%;height:6px;background:var(--bg3);border-radius:3px;-webkit-appearance:none;cursor:pointer;position:relative;z-index:2}
+    .speed-slider-track input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:var(--acc);border-radius:50%;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
+    .speed-slider-track input[type="range"]::-webkit-slider-thumb:hover{background:var(--acc2);transform:scale(1.1)}
+    .speed-slider-marker{position:absolute;top:50%;width:3px;height:16px;background:var(--ok);border-radius:2px;transform:translate(-50%,-50%);z-index:1;pointer-events:none;opacity:0.9}
+    .speed-slider-marker::after{content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);border:4px solid transparent;border-bottom-color:var(--ok)}
+    .speed-value-display{text-align:center;font-size:13px;color:var(--txt);margin:12px 0}
+    .speed-value-display span#speedValueMs{font-weight:600;color:var(--acc);font-size:16px}
+    .speed-multiplier{font-size:11px;color:var(--txt3);margin-left:6px}
+    .speed-presets{display:flex;gap:6px;justify-content:center;margin-top:12px}
+    .speed-preset{padding:6px 12px;font-size:11px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--txt2);cursor:pointer;transition:all .15s}
+    .speed-preset:hover{border-color:var(--acc);color:var(--acc)}
+    .speed-preset.active{background:var(--acc);border-color:var(--acc);color:#000}
+    .speed-preset.original{border-color:var(--ok);color:var(--ok)}
+    .speed-preset.original:hover{background:rgba(16,185,129,0.15)}
+    .speed-preset.original.active{background:var(--ok);color:#000}
     /* Left divider for frame panel */
     .divider-left{display:none;width:6px;cursor:col-resize;background:transparent;align-items:center;justify-content:center;flex-shrink:0;margin:0 -2px}
     .divider-left.show{display:flex}
@@ -289,7 +309,7 @@
               <span class="val" id="rb-fuzzV">10%</span>
             </div>
             <label class="opt"><input type="checkbox" id="rb-trim" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Auto-trim edges</label>
-            <label class="opt"><input type="checkbox" id="rb-edges" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Border only (preserve inner)</label>
+            <label class="opt"><input type="checkbox" id="rb-edges" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Border only (preserve inner)</label>
             <label class="opt"><input type="checkbox" id="rb-edgedetect" onchange="toggleEdgeDetect()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Feather edges (smoother cuts)</label>
             <div class="tool-row" id="rb-edgeRow" style="display:none">
               <label>Softness</label>
@@ -326,7 +346,7 @@
       </div>
 
       <!-- Generate Icons (combined ICO + Icon Pack) -->
-      <div class="tool" id="t-icons" data-tool="icons" data-ext=".png,.jpg,.jpeg,.ico,.gif">
+      <div class="tool" id="t-icons" data-tool="icons" data-ext=".png,.jpg,.jpeg,.ico">
         <div class="tool-header" onclick="toggleTool('icons')">
           <img src="/icons/iconpack.ico" alt="">
           <span class="name">Generate Icons</span>
@@ -348,7 +368,7 @@
       </div>
 
       <!-- Generate Store Assets -->
-      <div class="tool" id="t-storepack" data-tool="storepack" data-ext=".png,.jpg,.jpeg,.gif">
+      <div class="tool" id="t-storepack" data-tool="storepack" data-ext=".png,.jpg,.jpeg">
         <div class="tool-header" onclick="toggleTool('storepack')">
           <img src="/icons/storepack.ico" alt="">
           <span class="name">Generate Store Assets</span>
@@ -509,6 +529,41 @@
     <div class="export-modal-btns">
       <button class="cancel" onclick="hideExportModal()">Cancel</button>
       <button class="confirm" onclick="confirmExport()">Export</button>
+    </div>
+  </div>
+</div>
+
+<!-- GIF Speed modal -->
+<div class="modal-overlay" id="speedModal" onclick="hideSpeedModal(event)">
+  <div class="export-modal" onclick="event.stopPropagation()">
+    <h3>GIF Export Speed</h3>
+    <p style="font-size:11px;color:var(--txt2);margin-bottom:16px">
+      Adjust the frame delay for the exported GIF.
+    </p>
+    <div class="speed-slider-container">
+      <div class="speed-slider-labels">
+        <span>Slower</span>
+        <span>Faster</span>
+      </div>
+      <div class="speed-slider-track">
+        <div class="speed-slider-marker" id="speedMarker" title="Original speed"></div>
+        <input type="range" id="speedSlider" min="20" max="500" value="100" oninput="updateSpeedValue(this.value)">
+      </div>
+      <div class="speed-value-display">
+        <span id="speedValueMs">100</span>ms per frame
+        <span class="speed-multiplier" id="speedMultiplier">(1.0×)</span>
+      </div>
+      <div class="speed-presets">
+        <button onclick="setSpeedPreset(200)" class="speed-preset">0.5×</button>
+        <button onclick="setSpeedPreset(100)" class="speed-preset">1×</button>
+        <button onclick="setSpeedPreset(50)" class="speed-preset">2×</button>
+        <button onclick="setSpeedPreset(33)" class="speed-preset">3×</button>
+        <button onclick="setSpeedToOriginal()" class="speed-preset original" id="originalSpeedBtn" title="Reset to imported speed">Original</button>
+      </div>
+    </div>
+    <div class="export-modal-btns">
+      <button class="cancel" onclick="hideSpeedModal()">Cancel</button>
+      <button class="confirm" onclick="confirmSpeed()">Export</button>
     </div>
   </div>
 </div>
@@ -720,10 +775,6 @@ function toggleRatioLock() {
 function toggleEdgeDetect() {
   const enabled = $('rb-edgedetect').checked;
   $('rb-edgeRow').style.display = enabled ? 'flex' : 'none';
-  // Edge detect and preserve inner are mutually exclusive
-  if (enabled) {
-    $('rb-edges').checked = false;
-  }
   schedulePreview();
 }
 
@@ -946,6 +997,19 @@ function updateImageInfo() {
   // Check if GIF
   isGifFile = ext === '.gif';
   if (isGifFile && imageInfo.frameCount > 1) {
+    // Capture original frame delay for GIFs
+    if (imageInfo.originalDelayMs) {
+      originalImportedDelayMs = imageInfo.originalDelayMs;
+      // Set playback speed to match original
+      playSpeed = originalImportedDelayMs;
+      const speedSelect = $('playSpeed');
+      // Find closest preset or keep custom
+      const presets = [200, 100, 50, 33];
+      const closest = presets.reduce((a, b) =>
+        Math.abs(b - originalImportedDelayMs) < Math.abs(a - originalImportedDelayMs) ? b : a
+      );
+      speedSelect.value = closest;
+    }
     showFrameStrip();
   } else {
     hideFrameStrip();
@@ -993,6 +1057,8 @@ function actuallyShowFrameStrip() {
   gifFrames = [];
   framePreviewCache = {};
   loadFrameThumbnails();
+  // Select first frame to show preview
+  setTimeout(() => selectFrame(0), 100);
 }
 
 function hideFrameStrip() {
@@ -1063,9 +1129,87 @@ function confirmExport() {
       exportAllFrames();
       break;
     case 'gif':
-      exportAsGif();
+      showSpeedModal();
       break;
   }
+}
+
+// GIF Speed modal
+let selectedSpeedMs = 100; // Default 1×
+let originalImportedDelayMs = 100; // Will be set from imageInfo
+
+function showSpeedModal() {
+  // Use playback speed as starting value
+  selectedSpeedMs = playSpeed;
+
+  const slider = $('speedSlider');
+  const marker = $('speedMarker');
+
+  // Set slider value (inverted: low ms = fast, high ms = slow)
+  slider.value = selectedSpeedMs;
+  updateSpeedValue(selectedSpeedMs);
+
+  // Position the original speed marker
+  const originalMs = originalImportedDelayMs || 100;
+  const minMs = 20, maxMs = 500;
+  const clampedOriginal = Math.max(minMs, Math.min(maxMs, originalMs));
+  const markerPercent = ((clampedOriginal - minMs) / (maxMs - minMs)) * 100;
+  marker.style.left = `${markerPercent}%`;
+  marker.title = `Original: ${originalMs}ms`;
+
+  // Show original speed on button
+  $('originalSpeedBtn').textContent = `Original (${originalMs}ms)`;
+
+  $('speedModal').classList.add('on');
+}
+
+function hideSpeedModal(e) {
+  if (!e || e.target === $('speedModal')) {
+    $('speedModal').classList.remove('on');
+  }
+}
+
+function updateSpeedValue(ms) {
+  ms = parseInt(ms, 10);
+  selectedSpeedMs = ms;
+
+  $('speedValueMs').textContent = ms;
+
+  // Calculate multiplier relative to 100ms baseline
+  const multiplier = (100 / ms).toFixed(1);
+  $('speedMultiplier').textContent = `(${multiplier}×)`;
+
+  // Update active preset button
+  const presets = [200, 100, 50, 33];
+  document.querySelectorAll('.speed-preset:not(.original)').forEach(btn => {
+    const presetVal = parseInt(btn.textContent) === 1 ? 100 :
+                      btn.textContent === '0.5×' ? 200 :
+                      btn.textContent === '2×' ? 50 :
+                      btn.textContent === '3×' ? 33 : null;
+    btn.classList.toggle('active', presetVal === ms);
+  });
+
+  // Check if it's original
+  const isOriginal = Math.abs(ms - originalImportedDelayMs) <= 2;
+  $('originalSpeedBtn').classList.toggle('active', isOriginal);
+}
+
+function setSpeedPreset(ms) {
+  $('speedSlider').value = ms;
+  updateSpeedValue(ms);
+}
+
+function setSpeedToOriginal() {
+  const ms = originalImportedDelayMs || 100;
+  // Clamp to slider range
+  const clampedMs = Math.max(20, Math.min(500, ms));
+  $('speedSlider').value = clampedMs;
+  updateSpeedValue(clampedMs);
+}
+
+function confirmSpeed() {
+  hideSpeedModal();
+  exportAsGif(selectedSpeedMs);
 }
 
 function togglePlayback() {
@@ -1249,9 +1393,11 @@ async function exportAllFrames() {
   await runExport(opts, 'Exporting all frames...');
 }
 
-async function exportAsGif() {
+async function exportAsGif(speedMs = 100) {
   const opts = getOptions();
   opts.exportMode = 'gif';
+  // Convert ms to centiseconds for ImageMagick -delay
+  opts.frameDelay = Math.round(speedMs / 10);
   await runExport(opts, 'Processing and exporting GIF...');
 }
 
@@ -1279,37 +1425,57 @@ async function runExport(opts, message) {
 
 // ── Frame Delete/Replace ──
 
-async function deleteSelectedFrame() {
-  if (!isGifFile || gifFrames.length <= 1) {
+function deleteSelectedFrame() {
+  if (!isGifFile || imageInfo.frameCount <= 1) {
     showAlert('Cannot delete the only frame');
     return;
   }
 
+  showConfirm(`Delete frame ${selectedFrameIndex + 1}?`, () => performFrameDelete());
+}
+
+async function performFrameDelete() {
   stopPlayback();
 
-  // Show loading on the frame
-  const thumb = document.querySelector(`.frame-thumb[data-index="${selectedFrameIndex}"]`);
+  const deletedIndex = selectedFrameIndex;
+  const thumb = document.querySelector(`.frame-thumb[data-index="${deletedIndex}"]`);
   if (thumb) thumb.classList.add('processing');
 
   try {
-    const result = await postJson('/api/delete-frame', { frameIndex: selectedFrameIndex });
+    const result = await postJson('/api/delete-frame', { frameIndex: deletedIndex });
 
     if (result.success) {
       imageInfo.frameCount = result.frameCount;
       $('frameCount').textContent = result.frameCount;
 
-      // Adjust selected index if needed
+      // Remove deleted frame from DOM
+      if (thumb) thumb.remove();
+
+      // Update indices and frame numbers for remaining frames
+      const scroll = $('frameScroll');
+      Array.from(scroll.children).forEach((el, i) => {
+        el.dataset.index = i;
+        el.querySelector('.frame-num').textContent = i + 1;
+        el.onclick = () => selectFrame(i);
+      });
+
+      // Update gifFrames array - remove deleted and shift indices
+      gifFrames.splice(deletedIndex, 1);
+      gifFrames.forEach((f, i) => { if (f) f.index = i; });
+
+      // Clear preview cache for deleted frame and higher indices
+      Object.keys(framePreviewCache).forEach(key => {
+        const idx = parseInt(key);
+        if (idx >= deletedIndex) delete framePreviewCache[key];
+      });
+
+      // Adjust selected index
       if (selectedFrameIndex >= result.frameCount) {
         selectedFrameIndex = result.frameCount - 1;
       }
 
-      // Reload frame thumbnails
-      gifFrames = [];
-      framePreviewCache = {};
-      loadFrameThumbnails();
-
-      // Show updated frame
-      setTimeout(() => selectFrame(selectedFrameIndex), 100);
+      // Select the appropriate frame
+      selectFrame(selectedFrameIndex);
     } else {
       if (thumb) thumb.classList.remove('processing');
       showAlert('Failed to delete frame: ' + (result.error || 'Unknown error'));
@@ -1332,31 +1498,45 @@ async function handleReplaceFile(e) {
 
   stopPlayback();
 
-  // Show loading on the frame
-  const thumb = document.querySelector(`.frame-thumb[data-index="${selectedFrameIndex}"]`);
+  const replacedIndex = selectedFrameIndex;
+  const thumb = document.querySelector(`.frame-thumb[data-index="${replacedIndex}"]`);
   if (thumb) thumb.classList.add('processing');
 
   try {
-    // Read file as base64
     const reader = new FileReader();
     reader.onload = async () => {
-      const base64 = reader.result.split(',')[1]; // Remove data URL prefix
+      const base64 = reader.result.split(',')[1];
 
       const result = await postJson('/api/replace-frame', {
-        frameIndex: selectedFrameIndex,
+        frameIndex: replacedIndex,
         imageData: base64
       });
 
       if (result.success) {
-        // Reload frame thumbnails
-        gifFrames = [];
-        framePreviewCache = {};
-        loadFrameThumbnails();
+        // Only update the replaced frame's thumbnail
+        try {
+          const thumbResult = await postJson('/api/frame-thumbnail', { frameIndex: replacedIndex });
+          if (thumbResult.success && thumbResult.imageData) {
+            // Update the thumbnail image
+            let img = thumb.querySelector('img');
+            if (!img) {
+              img = document.createElement('img');
+              thumb.insertBefore(img, thumb.firstChild);
+            }
+            img.src = thumbResult.imageData;
+            gifFrames[replacedIndex] = { index: replacedIndex, thumbnail: thumbResult.imageData };
+          }
+        } catch (e) {
+          console.error('Failed to load replaced frame thumbnail', e);
+        }
 
-        // Show updated frame
-        setTimeout(() => selectFrame(selectedFrameIndex), 100);
+        // Clear only the replaced frame's preview cache
+        delete framePreviewCache[replacedIndex];
+
+        thumb.classList.remove('processing');
+        selectFrame(replacedIndex);
       } else {
-        if (thumb) thumb.classList.remove('processing');
+        thumb.classList.remove('processing');
         showAlert('Failed to replace frame: ' + (result.error || 'Unknown error'));
       }
     };
@@ -1738,7 +1918,8 @@ async function showDone(success, title, message) {
       donePreview.innerHTML = `<span style="color:var(--err);font-size:10px;z-index:1;position:relative">Error: ${e.message}</span>`;
     }
   } else {
-    donePreview.innerHTML = '';
+    // Show banana error animation
+    donePreview.innerHTML = '<lottie-player src="/banana-error.json" background="transparent" speed="1" style="width:120px;height:120px;z-index:1" loop autoplay></lottie-player>';
   }
 }
 

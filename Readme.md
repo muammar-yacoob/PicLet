@@ -126,10 +126,13 @@ Right-click any image file in Windows Explorer to access PicLet tools:
 <img src="res/imgs/menu.png" style="border: 1px solid #eee; border-radius: 4px; max-width: 500px;" alt="PicLet Context Menu">
 </div>
 
-<div align="center">
-<img src="res/imgs/demo.png" alt="PicLet GUI" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 700px;">
-<p><em>GUI with real-time preview and batch processing</em></p>
+<div align="center" style="display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch; gap: 12px; max-width: 900px; margin: 0 auto;">
+  <img src="res/imgs/demo.png" alt="PicLet GUI" style="flex: 1 1 0; min-width: 200px; max-width: 50%; width: 100%; height: auto; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  <a href="https://youtube.com/shorts/JBw04JynHCo" target="_blank" rel="noopener" style="flex: 1 1 0; min-width: 200px; max-width: 50%; display: block;">
+    <img src="https://img.youtube.com/vi/JBw04JynHCo/hqdefault.jpg" alt="Watch PicLet demo" style="width: 100%; height: auto; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  </a>
 </div>
+<p align="center"><em>GUI with real-time preview and batch processing</em></p>
 
 ### ⌨️ CLI Mode (Command Line)
 

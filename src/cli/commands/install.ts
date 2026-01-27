@@ -4,15 +4,14 @@ import { showBanner } from '../../lib/banner.js';
 import { wslToWindows } from '../../lib/paths.js';
 import { isWSL, isWSLInteropEnabled } from '../../lib/registry.js';
 import { generateRegFile, registerAllTools, unregisterAllTools } from '../registry.js';
-import { tools } from '../tools.js';
 
 export function registerInstallCommand(program: Command): void {
 	program
 		.command('install')
 		.description('Install Windows shell context menu integration')
 		.action(async () => {
-			showBanner();
 			console.log(chalk.bold('Installing...\n'));
+			showBanner();
 
 			if (!isWSL()) {
 				console.log(
@@ -35,53 +34,61 @@ export function registerInstallCommand(program: Command): void {
 				console.log(chalk.bold('To install, either:'));
 				console.log(chalk.dim('  1. Double-click the .reg file in Windows Explorer'));
 				console.log(chalk.dim(`  2. Run in elevated PowerShell: reg import "${winPath}"`));
-				console.log();
 				return;
 			}
 
 			// Clean up existing entries first
-			console.log(chalk.dim('Removing old entries...'));
+			// console.log(chalk.dim('Removing old entries...'));
 			await unregisterAllTools();
-			console.log();
+			await registerAllTools();
 
-			const results = await registerAllTools();
-			const allSuccess = results.every((r) => r.success);
-
-			// Display each tool with its supported extensions
-			for (const { config } of tools) {
-				const extList = config.extensions.join(', ');
-				console.log(`${chalk.green('✓')} ${config.name} ${chalk.dim(`[${extList}]`)}`);
-			}
-
-			console.log();
-			if (allSuccess) {
-				console.log(
-					chalk.green(`✓ Registered ${tools.length} tools for context menu.`),
-				);
-			} else {
-				const successCount = results.filter((r) => r.success).length;
-				console.log(
-					chalk.yellow(`! Registered ${successCount}/${results.length} entries.`),
-				);
-			}
+			const dim = chalk.gray;
+			const cmd = chalk.cyan;
+			const arg = chalk.hex('#cc8800'); // dimmer orange for <file>
+			const opt = chalk.green;
+			const head = chalk.white.bold;
 
 			console.log(chalk.bold('\nContext Menu Usage:'));
 			console.log('  Right-click any supported image in Windows Explorer.');
 			console.log('  Multi-select supported for batch processing.');
+			console.log(
+				`  Supported image formats: ${arg('[.png, .jpg, .jpeg, .gif, .bmp, .ico]')}`,
+			);
 
-			console.log(chalk.bold('\nCLI Usage:'));
-			console.log(chalk.cyan('  piclet <image>') + chalk.dim('         Open GUI editor'));
-			console.log(chalk.cyan('  piclet makeicon <img>') + chalk.dim('  Convert to .ico'));
-			console.log(chalk.cyan('  piclet remove-bg <img>') + chalk.dim(' Remove background'));
-			console.log(chalk.cyan('  piclet scale <img>') + chalk.dim('     Resize image'));
-			console.log(chalk.cyan('  piclet iconpack <img>') + chalk.dim('  Generate icon pack'));
-			console.log(chalk.cyan('  piclet storepack <img>') + chalk.dim(' Generate store assets'));
-			console.log(chalk.cyan('  piclet transform <img>') + chalk.dim(' Rotate/flip image'));
-			console.log(chalk.cyan('  piclet filter <img>') + chalk.dim('    Apply filters'));
-			console.log(chalk.cyan('  piclet border <img>') + chalk.dim('    Add border'));
-			console.log(chalk.cyan('  piclet recolor <img>') + chalk.dim('   Replace colors'));
-			console.log(chalk.cyan('  piclet extract-frames <gif>') + chalk.dim(' Extract GIF frames'));
-			console.log(chalk.dim('\n  Run "piclet --help" for full documentation.'));
+			console.log(head('\nCLI Usage:'));
+			console.log(
+				`  ${head('Usage:')} piclet ${cmd('<command>')} ${arg('<file>')} ${opt('[options]')}`,
+			);
+			console.log();
+			console.log(head('  GUI'));
+			console.log(
+				`    ${cmd('piclet')} ${arg('<file>')}     Opens PicLet GUI window with all tools`,
+			);
+			console.log();
+			console.log(head('  Setup'));
+			console.log(`    ${cmd('install')}              Add Windows right-click menu`);
+			console.log(`    ${cmd('uninstall')}            Remove right-click menu`);
+			console.log();
+			console.log(head('  Config'));
+			console.log(`    ${cmd('config')}               Display current settings`);
+			console.log(`    ${cmd('config reset')}         Restore defaults`);
+			console.log();
+			console.log(head('  Prerequisites'));
+			console.log('    - WSL (Windows Subsystem for Linux)');
+			console.log('    - ImageMagick: sudo apt install imagemagick');
+			console.log();
+			console.log(head('  Examples'));
+			console.log(`    ${dim('$')} piclet ${cmd('piclet')} ${arg('image.png')}         ${dim('# All tools in one window')}`);
+			console.log(`    ${dim('$')} piclet ${cmd('makeicon')} ${arg('logo.png')}        ${dim('# Interactive')}`);
+			console.log(`    ${dim('$')} piclet ${cmd('makeicon')} ${arg('*.png')} ${opt('-y')}        ${dim('# Batch with defaults')}`);
+			console.log(`    ${dim('$')} piclet ${cmd('remove-bg')} ${arg('photo.png')}      ${dim('# Interactive prompts')}`);
+			console.log(`    ${dim('$')} piclet ${cmd('scale')} ${arg('image.jpg')}          ${dim('# Interactive resize')}`);
+			console.log(`    ${dim('$')} piclet ${cmd('gif')} ${arg('anim.gif')}             ${dim('# Extract GIF frames')}`);
+			console.log(`    ${dim('$')} piclet ${cmd('iconpack')} ${arg('icon.png')} ${opt('-y')}     ${dim('# All platforms')}`);
+			console.log(`    ${dim('$')} piclet ${cmd('storepack')} ${arg('image.png')} ${opt('-g')}   ${dim('# GUI for store assets')}`);
+			console.log(
+				`\n  Run "piclet ${opt('--help')}" for full documentation.`,
+			);
 			console.log();
 		});
 }

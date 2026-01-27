@@ -1,7 +1,7 @@
 /**
  * Unified PicLet tool - combines all tools with chaining support
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join } from 'node:path';
 import { startGuiServer } from '../lib/gui-server.js';
@@ -17,6 +17,7 @@ import {
 	getBorderColor,
 	getDimensions,
 	getFrameCount,
+	getGifDelay,
 	isMultiFrame,
 	removeBackground,
 	removeBackgroundBorderOnly,
@@ -26,12 +27,19 @@ import {
 	scaleFillCrop,
 	scaleToSize,
 	scaleWithPadding,
+	setGifDelay,
 	simplifyGif,
 	squarify,
 	trim,
 } from '../lib/magick.js';
-import { ensureOutputDir, getFileInfo, getOutputDir, normalizePath } from '../lib/paths.js';
+import { getFileInfo, normalizePath } from '../lib/paths.js';
 import { loadPresets } from '../lib/presets.js';
+
+/** Move file across devices (copy + delete fallback for cross-device) */
+function moveFile(src: string, dest: string): void {
+	copyFileSync(src, dest);
+	unlinkSync(src);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -85,6 +93,7 @@ async function generateCombinedPreview(
 	input: string,
 	borderColor: string | null,
 	opts: ToolOptions,
+	noScaleDown = false,
 ): Promise<PreviewResult> {
 	const tempDir = tmpdir();
 	const ts = Date.now();
@@ -107,12 +116,12 @@ async function generateCombinedPreview(
 			}
 		}
 
-		// If just showing original, scale it for preview and return
+		// If just showing original, scale it for preview and return (unless GIF – no scale-down)
 		if (opts.original || opts.tools.length === 0) {
 			const dims = await getDimensions(current);
 			let previewPath = current;
 
-			if (dims && (dims[0] > 512 || dims[1] > 512)) {
+			if (!noScaleDown && dims && (dims[0] > 512 || dims[1] > 512)) {
 				const scaled = makeTempPath('orig-preview');
 				const targetSize = Math.min(512, Math.max(dims[0], dims[1]));
 				if (await scaleToSize(current, scaled, targetSize)) {
@@ -215,11 +224,11 @@ async function generateCombinedPreview(
 			}
 		}
 
-		// Scale down for preview display if needed
+		// Scale down for preview display if needed (skip for GIF – keep full resolution)
 		const dims = await getDimensions(current);
 		let previewPath = current;
 
-		if (dims && (dims[0] > 512 || dims[1] > 512)) {
+		if (!noScaleDown && dims && (dims[0] > 512 || dims[1] > 512)) {
 			const scaled = makeTempPath('preview');
 			const targetSize = Math.min(512, Math.max(dims[0], dims[1]));
 			if (await scaleToSize(current, scaled, targetSize)) {
@@ -257,7 +266,9 @@ async function processCombined(
 	borderColor: string | null,
 	opts: ToolOptions,
 	logs: Array<{ type: string; message: string }>,
+	sourcePath?: string,
 ): Promise<ProcessedResult> {
+	const sourceInfo = getFileInfo(sourcePath || input);
 	const fileInfo = getFileInfo(input);
 	const outputs: string[] = [];
 	const temps: string[] = [];
@@ -321,9 +332,9 @@ async function processCombined(
 
 				// If this is the last tool, save output
 				if (activeTools.indexOf(tool) === activeTools.length - 1) {
-					const outDir = ensureOutputDir(input);
-					const finalOut = join(outDir, `${fileInfo.filename}_nobg${outputExt}`);
-					renameSync(current, finalOut);
+					const outDir = dirname(sourcePath || input);
+					const finalOut = join(outDir, `${sourceInfo.filename}_nobg${outputExt}`);
+					moveFile(current, finalOut);
 					temps.splice(temps.indexOf(current), 1);
 					outputs.push(basename(finalOut));
 					singleFilePath = finalOut;
@@ -362,9 +373,9 @@ async function processCombined(
 
 				// If this is the last tool, save output
 				if (activeTools.indexOf(tool) === activeTools.length - 1) {
-					const outDir = ensureOutputDir(input);
-					const finalOut = join(outDir, `${fileInfo.filename}_scaled${outputExt}`);
-					renameSync(current, finalOut);
+					const outDir = dirname(sourcePath || input);
+					const finalOut = join(outDir, `${sourceInfo.filename}_scaled${outputExt}`);
+					moveFile(current, finalOut);
 					temps.splice(temps.indexOf(current), 1);
 					outputs.push(basename(finalOut));
 					singleFilePath = finalOut;
@@ -419,11 +430,12 @@ async function processCombined(
 				// Generate ICO file
 				if (icOpts.ico) {
 					logs.push({ type: 'info', message: 'Creating ICO file...' });
-					const outDir = ensureOutputDir(input);
-					const icoOut = join(outDir, `${fileInfo.filename}.ico`);
+					const icoDir = dirname(sourcePath || input);
+					const icoOut = join(icoDir, `${sourceInfo.filename}.ico`);
 					if (await createIco(srcTemp, icoOut)) {
 						logs.push({ type: 'success', message: 'ICO: 6 sizes (256, 128, 64, 48, 32, 16)' });
 						outputs.push(basename(icoOut));
+						singleFilePath = icoOut;
 						totalCount += 6;
 					} else {
 						logs.push({ type: 'warn', message: 'ICO creation failed' });
@@ -433,8 +445,8 @@ async function processCombined(
 				// Generate icon packs (Web, Android, iOS)
 				const needsPacks = icOpts.web || icOpts.android || icOpts.ios;
 				if (needsPacks) {
-					const outDir = ensureOutputDir(input);
-					const outputDir = join(outDir, `${fileInfo.filename}_icons`);
+					const packDir = dirname(sourcePath || input);
+					const outputDir = join(packDir, `${sourceInfo.filename}_icons`);
 					mkdirSync(outputDir, { recursive: true });
 
 					if (icOpts.web) {
@@ -495,7 +507,7 @@ async function processCombined(
 						logs.push({ type: 'success', message: `iOS: ${iosSizes.length} icons` });
 					}
 
-					outputs.push(`${totalCount} icons → ${fileInfo.filename}_icons/`);
+					outputs.push(`${totalCount} icons → ${sourceInfo.filename}_icons/`);
 				}
 
 				cleanup(srcTemp);
@@ -513,8 +525,8 @@ async function processCombined(
 				}
 
 				const folderName = spOpts.presetName || 'assets';
-				const outDir = ensureOutputDir(input);
-				const outputDir = join(outDir, `${fileInfo.filename}_${folderName}`);
+				const packDir = dirname(sourcePath || input);
+				const outputDir = join(packDir, `${sourceInfo.filename}_${folderName}`);
 				mkdirSync(outputDir, { recursive: true });
 
 				let count = 0;
@@ -537,7 +549,7 @@ async function processCombined(
 				}
 
 				logs.push({ type: 'success', message: `Generated ${count}/${spOpts.dimensions.length} images` });
-				outputs.push(`${count} images → ${fileInfo.filename}_${folderName}/`);
+				outputs.push(`${count} images → ${sourceInfo.filename}_${folderName}/`);
 				break;
 			}
 		}
@@ -553,7 +565,8 @@ async function processCombined(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function runGUI(inputRaw: string): Promise<boolean> {
-	let currentInput = normalizePath(inputRaw);
+	const sourceFilePath = normalizePath(inputRaw);
+	let currentInput = sourceFilePath;
 
 	if (!existsSync(currentInput)) {
 		error(`File not found: ${currentInput}`);
@@ -568,6 +581,8 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 
 	let currentBorderColor = await getBorderColor(currentInput);
 	let currentFrameCount = isMultiFrame(currentInput) ? await getFrameCount(currentInput) : 1;
+	// Get original frame delay for GIFs (centiseconds to ms)
+	const originalDelayMs = currentFrameCount > 1 ? (await getGifDelay(currentInput)) * 10 : 100;
 	const presets = loadPresets();
 
 	// Helper to generate frame thumbnail
@@ -704,6 +719,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			height: dims[1],
 			borderColor: currentBorderColor,
 			frameCount: currentFrameCount,
+			originalDelayMs: originalDelayMs,
 		},
 		defaults: {
 			// Return full preset data for the UI
@@ -721,8 +737,10 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 				toolOpts.tools = [];
 			}
 
+			const isGif = isMultiFrame(currentInput);
+
 			// For GIFs with frameIndex, preview that specific frame
-			if (isMultiFrame(currentInput) && typeof toolOpts.frameIndex === 'number') {
+			if (isGif && typeof toolOpts.frameIndex === 'number') {
 				const tempDir = tmpdir();
 				const ts = Date.now();
 				const frameFile = join(tempDir, `piclet-prev-${ts}.png`);
@@ -731,24 +749,30 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 					return { success: false, error: 'Failed to extract frame' };
 				}
 
-				// Generate preview with the extracted frame
-				const result = await generateCombinedPreview(frameFile, currentBorderColor, toolOpts);
+				// Generate preview with the extracted frame (no scale-down for GIF)
+				const result = await generateCombinedPreview(
+					frameFile,
+					currentBorderColor,
+					toolOpts,
+					true,
+				);
 				cleanup(frameFile);
 				return result;
 			}
 
-			return generateCombinedPreview(currentInput, currentBorderColor, toolOpts);
+			return generateCombinedPreview(currentInput, currentBorderColor, toolOpts, isGif);
 		},
 		onProcess: async (opts) => {
 			const logs: Array<{ type: string; message: string }> = [];
 			const toolOpts = opts as unknown as ToolOptions & {
 				exportMode?: 'frame' | 'all-frames' | 'gif';
 				frameIndex?: number;
+				frameDelay?: number; // centiseconds per frame for GIF output
 			};
 
 			// Handle GIF export modes
 			if (toolOpts.exportMode && isMultiFrame(currentInput)) {
-				return processGifExport(currentInput, currentBorderColor, toolOpts, logs);
+				return processGifExport(currentInput, currentBorderColor, toolOpts, logs, sourceFilePath);
 			}
 
 			if (!toolOpts.tools || toolOpts.tools.length === 0) {
@@ -763,7 +787,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 				};
 			}
 
-			const result = await processCombined(currentInput, currentBorderColor, toolOpts, logs);
+			const result = await processCombined(currentInput, currentBorderColor, toolOpts, logs, sourceFilePath);
 
 			if (result.outputs.length > 0) {
 				return {
@@ -793,6 +817,8 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 
 				const newBorderColor = await getBorderColor(tempPath);
 				const newFrameCount = isMultiFrame(tempPath) ? await getFrameCount(tempPath) : 1;
+				// Get original frame delay for GIFs (in centiseconds, convert to ms)
+				const originalDelayMs = newFrameCount > 1 ? (await getGifDelay(tempPath)) * 10 : 100;
 
 				// Update current image
 				currentInput = tempPath;
@@ -807,6 +833,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 					height: newDims[1],
 					borderColor: newBorderColor,
 					frameCount: newFrameCount,
+					originalDelayMs: originalDelayMs,
 				};
 			} catch (err) {
 				return { success: false, error: (err as Error).message };
@@ -905,8 +932,9 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 async function processGifExport(
 	input: string,
 	borderColor: string | null,
-	opts: ToolOptions & { exportMode?: string; frameIndex?: number },
+	opts: ToolOptions & { exportMode?: string; frameIndex?: number; frameDelay?: number },
 	logs: Array<{ type: string; message: string }>,
+	sourcePath?: string,
 ): Promise<{ success: boolean; output?: string; outputPath?: string; error?: string; logs: Array<{ type: string; message: string }> }> {
 	if (!(await checkImageMagick())) {
 		return {
@@ -916,6 +944,7 @@ async function processGifExport(
 		};
 	}
 
+	const sourceInfo = getFileInfo(sourcePath || input);
 	const fileInfo = getFileInfo(input);
 	const tempDir = tmpdir();
 	const ts = Date.now();
@@ -926,6 +955,10 @@ async function processGifExport(
 			const frameIndex = opts.frameIndex ?? 0;
 			logs.push({ type: 'info', message: `Exporting frame ${frameIndex + 1}...` });
 
+			const frameOutDir = dirname(sourcePath || input);
+			const finalOutput = join(frameOutDir, `${sourceInfo.filename}_frame${frameIndex + 1}.png`);
+
+			// Extract frame directly to final location first
 			const frameFile = join(tempDir, `piclet-export-${ts}.png`);
 			if (!(await extractFirstFrame(input, frameFile, frameIndex))) {
 				logs.push({ type: 'error', message: 'Failed to extract frame' });
@@ -933,35 +966,33 @@ async function processGifExport(
 			}
 
 			// Apply tools if any
-			let outputFile = frameFile;
 			if (opts.tools && opts.tools.length > 0) {
 				const processedLogs: Array<{ type: string; message: string }> = [];
-				const result = await processCombined(frameFile, borderColor, opts, processedLogs);
+				const result = await processCombined(frameFile, borderColor, opts, processedLogs, sourcePath);
 				logs.push(...processedLogs);
+				cleanup(frameFile);
 
-				if (result.outputs.length === 0) {
-					cleanup(frameFile);
+				if (result.outputs.length === 0 || !result.singleFilePath) {
 					return { success: false, error: 'Processing failed', logs };
 				}
-			}
 
-			// Move to final location
-			const frameOutDir = ensureOutputDir(input);
-			const finalOutput = join(frameOutDir, `${fileInfo.filename}_frame${frameIndex + 1}.png`);
-			if (outputFile === frameFile) {
-				renameSync(frameFile, finalOutput);
+				// Move processed file to final location
+				moveFile(result.singleFilePath, finalOutput);
+			} else {
+				// No tools - just move extracted frame
+				moveFile(frameFile, finalOutput);
 			}
 
 			logs.push({ type: 'success', message: `Exported frame ${frameIndex + 1}` });
-			return { success: true, output: basename(finalOutput), logs };
+			return { success: true, output: basename(finalOutput), outputPath: finalOutput, logs };
 		}
 
 		case 'all-frames': {
 			// Export all frames as PNGs
 			logs.push({ type: 'info', message: 'Extracting all frames...' });
 
-			const framesOutDir = ensureOutputDir(input);
-			const outputDir = join(framesOutDir, `${fileInfo.filename}_frames`);
+			const framesOutDir = dirname(sourcePath || input);
+			const outputDir = join(framesOutDir, `${sourceInfo.filename}_frames`);
 			mkdirSync(outputDir, { recursive: true });
 
 			const frames = await extractAllFrames(input, outputDir, 'frame');
@@ -976,24 +1007,42 @@ async function processGifExport(
 				logs.push({ type: 'info', message: `Processing ${frames.length} frames...` });
 				for (let i = 0; i < frames.length; i++) {
 					const frameLogs: Array<{ type: string; message: string }> = [];
-					await processCombined(frames[i], borderColor, opts, frameLogs);
+					await processCombined(frames[i], borderColor, opts, frameLogs, sourcePath);
 				}
 				logs.push({ type: 'success', message: `Processed ${frames.length} frames` });
 			}
 
 			logs.push({ type: 'success', message: `Exported ${frames.length} frames` });
-			return { success: true, output: `${frames.length} frames -> ${fileInfo.filename}_frames/`, logs };
+			return { success: true, output: `${frames.length} frames -> ${sourceInfo.filename}_frames/`, logs };
 		}
 
 		case 'gif': {
 			// Process and export as GIF
 			logs.push({ type: 'info', message: 'Processing GIF...' });
 
-			// Use standard processing which handles GIFs with -coalesce
-			const result = await processCombined(input, borderColor, opts, logs);
+			let outputFile: string | undefined;
 
-			if (result.outputs.length > 0) {
-				return { success: true, output: result.outputs.join('\n'), outputPath: result.singleFilePath, logs };
+			if (opts.tools && opts.tools.length > 0) {
+				// Use standard processing which handles GIFs with -coalesce
+				const result = await processCombined(input, borderColor, opts, logs, sourcePath);
+				if (result.outputs.length > 0 && result.singleFilePath) {
+					outputFile = result.singleFilePath;
+				}
+			} else {
+				// No tools selected - just copy the GIF to source dir with speed applied
+				const outDir = dirname(sourcePath || input);
+				outputFile = join(outDir, `${sourceInfo.filename}_export.gif`);
+				copyFileSync(input, outputFile);
+				logs.push({ type: 'success', message: 'Exported GIF' });
+			}
+
+			if (outputFile) {
+				// Apply frame delay if specified
+				if (opts.frameDelay && opts.frameDelay > 0) {
+					logs.push({ type: 'info', message: `Setting frame delay to ${opts.frameDelay * 10}ms...` });
+					await setGifDelay(outputFile, opts.frameDelay);
+				}
+				return { success: true, output: basename(outputFile), outputPath: outputFile, logs };
 			}
 
 			return { success: false, error: 'Processing failed', logs };

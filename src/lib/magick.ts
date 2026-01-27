@@ -38,12 +38,12 @@ function isGif(imagePath: string): boolean {
 }
 
 /**
- * Get GIF output command suffix
- * Uses -layers OptimizePlus for better quality than Optimize
- * Also sets disposal method to restore background to prevent frame blending
+ * Get GIF output command suffix (placeholder for future optimization)
+ * No layer optimization is used to ensure each frame is stored as a complete image,
+ * preventing overlap artifacts when frames are extracted individually.
  */
-function getGifOutputSuffix(outputPath: string): string {
-	return isGif(outputPath) ? ' -dispose Background -layers OptimizePlus' : '';
+function getGifOutputSuffix(_outputPath: string): string {
+	return '';
 }
 
 /**
@@ -299,31 +299,34 @@ export async function removeBackgroundEdgeAware(
 	fuzz: number,
 	featherAmount = 50,
 ): Promise<boolean> {
-	// For GIFs, fall back to standard method (feathering per-frame is slow)
-	if (isGif(inputPath)) {
-		return removeBackgroundBorderOnly(inputPath, outputPath, color, fuzz);
-	}
-
 	try {
 		// Map feather amount (0-100) to blur radius (0.5 to 3 pixels)
 		const featherRadius = 0.5 + (featherAmount / 100) * 2.5;
+		const coalesce = getCoalescePrefix(inputPath);
 
-		// Two-step process:
-		// 1. Remove background using flood-fill from borders
-		// 2. Apply alpha channel feathering to smooth edges
-		//
-		// The feathering uses a blur on the alpha channel edges only,
-		// preserving the interior while softening the boundary
-		await execAsync(
-			`convert "${inputPath}" ` +
-			`-bordercolor "${color}" -border 1x1 ` +
-			`-fill none -fuzz ${fuzz}% -draw "matte 0,0 floodfill" ` +
-			`-shave 1x1 ` +
-			// Extract and feather the alpha channel
-			`\\( +clone -alpha extract -blur 0x${featherRadius} \\) ` +
-			`-compose CopyOpacity -composite ` +
-			`"${outputPath}"`,
-		);
+		if (isGif(inputPath)) {
+			// For GIFs: use -channel A -blur to feather alpha on each frame directly
+			// (+clone approach doesn't work with multi-frame images)
+			await execAsync(
+				`convert "${inputPath}" ${coalesce}` +
+				`-bordercolor "${color}" -border 1x1 ` +
+				`-fill none -fuzz ${fuzz}% -draw "matte 0,0 floodfill" ` +
+				`-shave 1x1 ` +
+				`-channel A -blur 0x${featherRadius} +channel ` +
+				`"${outputPath}"`,
+			);
+		} else {
+			// For single images: use +clone approach for precise alpha feathering
+			await execAsync(
+				`convert "${inputPath}" ` +
+				`-bordercolor "${color}" -border 1x1 ` +
+				`-fill none -fuzz ${fuzz}% -draw "matte 0,0 floodfill" ` +
+				`-shave 1x1 ` +
+				`\\( +clone -alpha extract -blur 0x${featherRadius} \\) ` +
+				`-compose CopyOpacity -composite ` +
+				`"${outputPath}"`,
+			);
+		}
 		return true;
 	} catch {
 		// Fall back to standard border-only method
@@ -458,6 +461,37 @@ export async function getFrameCount(imagePath: string): Promise<number> {
 		return Number.isNaN(count) ? 1 : count;
 	} catch {
 		return 1;
+	}
+}
+
+/**
+ * Get the frame delay of a GIF in centiseconds (1/100th of a second)
+ * Returns the delay of the first frame (most GIFs use uniform delay)
+ */
+export async function getGifDelay(imagePath: string): Promise<number> {
+	try {
+		const { stdout } = await execAsync(
+			`identify -format "%T\\n" "${imagePath}" | head -1`,
+		);
+		const delay = parseInt(stdout.trim(), 10);
+		return Number.isNaN(delay) || delay <= 0 ? 10 : delay; // Default 10cs (100ms)
+	} catch {
+		return 10;
+	}
+}
+
+/**
+ * Set uniform frame delay on a GIF (in centiseconds)
+ * Modifies the file in-place
+ */
+export async function setGifDelay(imagePath: string, delayCentiseconds: number): Promise<boolean> {
+	try {
+		await execAsync(
+			`convert "${imagePath}" -delay ${delayCentiseconds} "${imagePath}"`,
+		);
+		return true;
+	} catch {
+		return false;
 	}
 }
 
@@ -717,10 +751,9 @@ export async function deleteGifFrame(
 			return { success: false };
 		}
 
-		// Coalesce first, then delete the specific frame
-		// -dispose Background prevents frame blending artifacts
+		// Coalesce first (full frames), then delete the specific frame
 		await execAsync(
-			`convert "${inputPath}" -coalesce -delete ${frameIndex} -dispose Background -layers OptimizePlus "${outputPath}"`,
+			`convert "${inputPath}" -coalesce -delete ${frameIndex} "${outputPath}"`,
 		);
 
 		const newCount = await getFrameCount(outputPath);
@@ -759,22 +792,21 @@ export async function replaceGifFrame(
 
 		// Build frame list: all frames except the one being replaced
 		// Then insert the replacement at the right position
-		// -dispose Background prevents frame blending artifacts
 		if (frameIndex === 0) {
 			// Replace first frame
 			await execAsync(
-				`convert "${tempReplacement}" \\( "${inputPath}" -coalesce \\) -delete 1 -dispose Background -layers OptimizePlus "${outputPath}"`,
+				`convert "${tempReplacement}" \\( "${inputPath}" -coalesce \\) -delete 1 "${outputPath}"`,
 			);
 		} else if (frameIndex === frameCount - 1) {
 			// Replace last frame
 			await execAsync(
-				`convert \\( "${inputPath}" -coalesce -delete -1 \\) "${tempReplacement}" -dispose Background -layers OptimizePlus "${outputPath}"`,
+				`convert \\( "${inputPath}" -coalesce -delete -1 \\) "${tempReplacement}" "${outputPath}"`,
 			);
 		} else {
 			// Replace middle frame - need to split and rejoin
 			await execAsync(
 				`convert \\( "${inputPath}" -coalesce \\) -delete ${frameIndex} "${outputPath}.frames.gif" && ` +
-				`convert "${outputPath}.frames.gif[0-${frameIndex - 1}]" "${tempReplacement}" "${outputPath}.frames.gif[${frameIndex}-]" -dispose Background -layers OptimizePlus "${outputPath}" && ` +
+				`convert "${outputPath}.frames.gif[0-${frameIndex - 1}]" "${tempReplacement}" "${outputPath}.frames.gif[${frameIndex}-]" "${outputPath}" && ` +
 				`rm -f "${outputPath}.frames.gif"`,
 			);
 		}
@@ -818,13 +850,17 @@ export async function simplifyGif(
 	}
 
 	try {
-		// Get original frame count
+		// Get original frame count and delay
 		const originalCount = await getFrameCount(inputPath);
 		if (originalCount <= 1) {
 			// Not an animated GIF
 			copyFileSync(inputPath, outputPath);
 			return { success: true, frameCount: 1 };
 		}
+
+		const originalDelay = await getGifDelay(inputPath);
+		// Multiply delay by skip factor to maintain the same playback duration
+		const newDelay = originalDelay * skipFactor;
 
 		// Build frame index list: 0, N, 2N, 3N, ...
 		const frameIndices: number[] = [];
@@ -834,11 +870,11 @@ export async function simplifyGif(
 
 		// Use ImageMagick to extract specific frames and reconstruct GIF
 		// The -coalesce ensures proper rendering of delta-encoded frames
-		// -dispose Background prevents frame blending artifacts
+		// -delay adjusts timing to compensate for skipped frames
 		const keepPattern = frameIndices.join(',');
 
 		await execAsync(
-			`convert "${inputPath}[${keepPattern}]" -coalesce -dispose Background -layers OptimizePlus "${outputPath}"`,
+			`convert "${inputPath}[${keepPattern}]" -coalesce -delay ${newDelay} "${outputPath}"`,
 		);
 
 		const newCount = await getFrameCount(outputPath);

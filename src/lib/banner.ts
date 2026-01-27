@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import figlet from 'figlet';
 import gradient from 'gradient-string';
 
@@ -17,20 +18,22 @@ function renderLogo(): string {
 /**
  * Display the PicLet banner with gradient colors
  */
+const SUBTITLE_COLOR = '#eab308'; // first yellow from gradient
+
 export function showBanner(
 	subtitle = 'Image manipulation utility toolkit with Windows shell integration',
 ): void {
 	try {
 		console.log(`\n${renderLogo()}`);
 		if (subtitle) {
-			const subtleGradient = gradient(['#a8a8a8', '#d4d4d4']);
-			console.log(subtleGradient(`  ${subtitle}\n`));
+			console.log(chalk.hex(SUBTITLE_COLOR)(`${subtitle}\n`));
 		}
 	} catch {
 		// Fallback if rendering fails
 		console.log('\n\x1b[1mPicLet\x1b[0m');
 		if (subtitle) {
-			console.log(`\x1b[2m  ${subtitle}\x1b[0m\n`);
+			// #eab308 = rgb(234, 179, 8)
+			console.log(`\x1b[38;2;234;179;8m${subtitle}\x1b[0m\n`);
 		}
 	}
 }

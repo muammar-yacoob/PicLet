@@ -8,6 +8,7 @@ export function registerExtractFramesCommand(program: Command): void {
 	program
 		.command('extract-frames <files...>')
 		.alias('frames')
+		.alias('gif')
 		.description('Extract frames from animated GIF')
 		.option('-y, --yes', 'Use defaults, skip prompts')
 		.option('-g, --gui', 'Use GUI for options')

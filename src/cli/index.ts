@@ -22,7 +22,7 @@ export function showHelp(): void {
 
 	const dim = chalk.gray;
 	const cmd = chalk.cyan;
-	const arg = chalk.yellow;
+	const arg = chalk.hex('#cc8800'); // dimmer orange for <file>
 	const opt = chalk.green;
 	const head = chalk.white.bold;
 
@@ -30,9 +30,9 @@ export function showHelp(): void {
 		`  ${head('Usage:')} piclet ${cmd('<command>')} ${arg('<file>')} ${opt('[options]')}`,
 	);
 	console.log();
-	console.log(head('  Unified'));
+	console.log(head('  GUI'));
 	console.log(
-		`    ${cmd('piclet')} ${arg('<file>')}     Open all tools in one window`,
+		`    ${cmd('piclet')} ${arg('<file>')}     Opens PicLet GUI with all tools in one window`,
 	);
 	console.log();
 	console.log(head('  Individual Tools'));
@@ -46,19 +46,7 @@ export function showHelp(): void {
 		`    ${cmd('scale')} ${arg('<file>')}      Resize image with optional padding`,
 	);
 	console.log(
-		`    ${cmd('transform')} ${arg('<file>')}  Flip or rotate images`,
-	);
-	console.log(
-		`    ${cmd('filter')} ${arg('<file>')}     Apply color filters (grayscale, sepia)`,
-	);
-	console.log(
-		`    ${cmd('border')} ${arg('<file>')}     Add solid color border`,
-	);
-	console.log(
-		`    ${cmd('recolor')} ${arg('<file>')}    Replace one color with another`,
-	);
-	console.log(
-		`    ${cmd('frames')} ${arg('<file>')}      Extract frames from animated GIF`,
+		`    ${cmd('gif')} ${arg('<file>')}       Extract frames from animated GIF`,
 	);
 	console.log(
 		`    ${cmd('iconpack')} ${arg('<file>')}   Generate icon sets for Web/Android/iOS`,
@@ -83,6 +71,7 @@ export function showHelp(): void {
 	console.log(`    ${dim('$')} piclet ${cmd('makeicon')} ${arg('*.png')} ${opt('-y')}        ${dim('# Batch with defaults')}`);
 	console.log(`    ${dim('$')} piclet ${cmd('remove-bg')} ${arg('photo.png')}      ${dim('# Interactive prompts')}`);
 	console.log(`    ${dim('$')} piclet ${cmd('scale')} ${arg('image.jpg')}          ${dim('# Interactive resize')}`);
+	console.log(`    ${dim('$')} piclet ${cmd('gif')} ${arg('anim.gif')}             ${dim('# Extract GIF frames')}`);
 	console.log(`    ${dim('$')} piclet ${cmd('iconpack')} ${arg('icon.png')} ${opt('-y')}     ${dim('# All platforms')}`);
 	console.log();
 	console.log(head('  Requirements'));
@@ -94,9 +83,11 @@ export function showHelp(): void {
 export function createProgram(): Command {
 	const program = new Command();
 
-	// Override default help
+	// Override default help; show our custom help for both -h/--help
 	program.helpInformation = () => '';
-	program.on('--help', () => {});
+	program.on('--help', () => {
+		showHelp();
+	});
 
 	program
 		.name('piclet')

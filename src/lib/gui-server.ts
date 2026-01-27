@@ -51,6 +51,7 @@ export interface GuiServerOptions {
 		height: number;
 		borderColor: string | null;
 		frameCount?: number;
+		originalDelayMs?: number;
 	};
 	defaults: Record<string, unknown>;
 	onPreview?: (options: Record<string, unknown>) => Promise<{
@@ -148,6 +149,7 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 				height: options.imageInfo.height,
 				borderColor: options.imageInfo.borderColor,
 				frameCount: options.imageInfo.frameCount || 1,
+				originalDelayMs: options.imageInfo.originalDelayMs || 100,
 				defaults: options.defaults,
 			});
 		});
@@ -295,6 +297,7 @@ export function startGuiServer(options: GuiServerOptions): Promise<boolean> {
 					options.imageInfo.width = result.width!;
 					options.imageInfo.height = result.height!;
 					options.imageInfo.borderColor = result.borderColor ?? null;
+					options.imageInfo.originalDelayMs = result.originalDelayMs ?? 100;
 				}
 				res.json(result);
 			} catch (err) {
