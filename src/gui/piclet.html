@@ -192,24 +192,36 @@
     .export-modal-btns .confirm{background:var(--acc);border:none;color:#000}
     .export-modal-btns .confirm:hover{background:var(--acc2)}
     /* Speed slider modal */
+    .speed-preview-container{display:flex;justify-content:center;margin-bottom:16px}
+    .speed-preview{width:120px;height:120px;background:repeating-conic-gradient(#1a1a1d 0% 25%, #222 0% 50%) 50%/8px 8px;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+    .speed-preview img{max-width:100%;max-height:100%;object-fit:contain}
     .speed-slider-container{margin-bottom:16px}
-    .speed-slider-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--txt3);margin-bottom:6px}
+    .speed-info-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .speed-label{font-size:12px;color:var(--txt2)}
+    .speed-value{font-size:20px;font-weight:600;color:var(--acc)}
     .speed-slider-track{position:relative;padding:8px 0}
     .speed-slider-track input[type="range"]{width:100%;height:6px;background:var(--bg3);border-radius:3px;-webkit-appearance:none;cursor:pointer;position:relative;z-index:2}
     .speed-slider-track input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:var(--acc);border-radius:50%;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.3)}
     .speed-slider-track input[type="range"]::-webkit-slider-thumb:hover{background:var(--acc2);transform:scale(1.1)}
     .speed-slider-marker{position:absolute;top:50%;width:3px;height:16px;background:var(--ok);border-radius:2px;transform:translate(-50%,-50%);z-index:1;pointer-events:none;opacity:0.9}
     .speed-slider-marker::after{content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);border:4px solid transparent;border-bottom-color:var(--ok)}
-    .speed-value-display{text-align:center;font-size:13px;color:var(--txt);margin:12px 0}
-    .speed-value-display span#speedValueMs{font-weight:600;color:var(--acc);font-size:16px}
-    .speed-multiplier{font-size:11px;color:var(--txt3);margin-left:6px}
-    .speed-presets{display:flex;gap:6px;justify-content:center;margin-top:12px}
-    .speed-preset{padding:6px 12px;font-size:11px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--txt2);cursor:pointer;transition:all .15s}
+    .speed-presets{display:flex;gap:6px;justify-content:center;margin:12px 0;flex-wrap:wrap}
+    .speed-preset{padding:6px 14px;font-size:11px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--txt2);cursor:pointer;transition:all .15s}
     .speed-preset:hover{border-color:var(--acc);color:var(--acc)}
     .speed-preset.active{background:var(--acc);border-color:var(--acc);color:#000}
-    .speed-preset.original{border-color:var(--ok);color:var(--ok)}
-    .speed-preset.original:hover{background:rgba(16,185,129,0.15)}
-    .speed-preset.original.active{background:var(--ok);color:#000}
+    .speed-preset[data-mult="1"]{border-color:var(--ok);color:var(--ok)}
+    .speed-preset[data-mult="1"]:hover{background:rgba(16,185,129,0.15)}
+    .speed-preset[data-mult="1"].active{background:var(--ok);border-color:var(--ok);color:#000}
+    .speed-duration{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--txt2);margin:12px 0;padding:8px;background:var(--bg3);border-radius:4px}
+    .speed-duration #durationOriginal{color:var(--txt3)}
+    .speed-duration #durationNew{color:var(--acc);font-weight:600}
+    .speed-loop-toggle{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd)}
+    .loop-label{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--txt2);cursor:pointer}
+    .loop-label input{display:none}
+    .loop-box{width:18px;height:18px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;display:grid;place-items:center;transition:all .15s}
+    .loop-label input:checked+.loop-box{background:var(--acc);border-color:var(--acc)}
+    .loop-box svg{width:12px;height:12px;fill:none;stroke:#000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .15s}
+    .loop-label input:checked+.loop-box svg{opacity:1}
     /* Left divider for frame panel */
     .divider-left{display:none;width:6px;cursor:col-resize;background:transparent;align-items:center;justify-content:center;flex-shrink:0;margin:0 -2px}
     .divider-left.show{display:flex}
@@ -277,11 +289,11 @@
         <span class="zoom-sep"></span>
         <div class="play-controls" id="playControls">
           <button id="playBtn" onclick="togglePlayback()" title="Play/Pause">▶</button>
-          <select id="playSpeed" onchange="setPlaySpeed(this.value)" title="Playback speed">
-            <option value="200">0.5×</option>
-            <option value="100" selected>1×</option>
-            <option value="50">2×</option>
-            <option value="33">3×</option>
+          <select id="playSpeed" onchange="setPlaySpeedMultiplier(this.value)" title="Playback speed">
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="2">2×</option>
+            <option value="3">3×</option>
           </select>
         </div>
       </div>
@@ -536,29 +548,37 @@
 <!-- GIF Speed modal -->
 <div class="modal-overlay" id="speedModal" onclick="hideSpeedModal(event)">
   <div class="export-modal" onclick="event.stopPropagation()">
-    <h3>GIF Export Speed</h3>
-    <p style="font-size:11px;color:var(--txt2);margin-bottom:16px">
-      Adjust the frame delay for the exported GIF.
-    </p>
+    <h3>GIF Export Settings</h3>
+    <div class="speed-preview-container">
+      <div class="speed-preview" id="speedPreview"></div>
+    </div>
     <div class="speed-slider-container">
-      <div class="speed-slider-labels">
-        <span>Slower</span>
-        <span>Faster</span>
+      <div class="speed-info-row">
+        <span class="speed-label">Speed</span>
+        <span class="speed-value" id="speedDisplay">1.0×</span>
       </div>
       <div class="speed-slider-track">
-        <div class="speed-slider-marker" id="speedMarker" title="Original speed"></div>
-        <input type="range" id="speedSlider" min="20" max="500" value="100" oninput="updateSpeedValue(this.value)">
-      </div>
-      <div class="speed-value-display">
-        <span id="speedValueMs">100</span>ms per frame
-        <span class="speed-multiplier" id="speedMultiplier">(1.0×)</span>
+        <div class="speed-slider-marker" id="speedMarker" title="Original (1×)"></div>
+        <input type="range" id="speedSlider" min="0.25" max="4" step="0.05" value="1" oninput="updateSpeedFromSlider(this.value)">
       </div>
       <div class="speed-presets">
-        <button onclick="setSpeedPreset(200)" class="speed-preset">0.5×</button>
-        <button onclick="setSpeedPreset(100)" class="speed-preset">1×</button>
-        <button onclick="setSpeedPreset(50)" class="speed-preset">2×</button>
-        <button onclick="setSpeedPreset(33)" class="speed-preset">3×</button>
-        <button onclick="setSpeedToOriginal()" class="speed-preset original" id="originalSpeedBtn" title="Reset to imported speed">Original</button>
+        <button onclick="setSpeedMultiplier(0.5)" class="speed-preset" data-mult="0.5">0.5×</button>
+        <button onclick="setSpeedMultiplier(1)" class="speed-preset" data-mult="1">1×</button>
+        <button onclick="setSpeedMultiplier(2)" class="speed-preset" data-mult="2">2×</button>
+        <button onclick="setSpeedMultiplier(3)" class="speed-preset" data-mult="3">3×</button>
+      </div>
+      <div class="speed-duration">
+        <span>Duration:</span>
+        <span id="durationOriginal">0.0s</span>
+        <span>→</span>
+        <span id="durationNew">0.0s</span>
+      </div>
+      <div class="speed-loop-toggle">
+        <label class="loop-label">
+          <input type="checkbox" id="loopToggle" checked>
+          <span class="loop-box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>
+          <span>Loop animation</span>
+        </label>
       </div>
     </div>
     <div class="export-modal-btns">
@@ -695,7 +715,7 @@ let currentDimensions = []; // Editable dimensions for storepack
 
 // GIF frame state
 let isGifFile = false;
-let gifFrames = []; // Array of { index, thumbnail (base64) }
+let gifFrames = []; // Array of { index, thumbnail (base64), fullRes (base64) }
 let selectedFrameIndex = 0;
 let framePreviewCache = {}; // Cache processed frame previews
 
@@ -1000,16 +1020,10 @@ function updateImageInfo() {
     // Capture original frame delay for GIFs
     if (imageInfo.originalDelayMs) {
       originalImportedDelayMs = imageInfo.originalDelayMs;
-      // Set playback speed to match original
-      playSpeed = originalImportedDelayMs;
-      const speedSelect = $('playSpeed');
-      // Find closest preset or keep custom
-      const presets = [200, 100, 50, 33];
-      const closest = presets.reduce((a, b) =>
-        Math.abs(b - originalImportedDelayMs) < Math.abs(a - originalImportedDelayMs) ? b : a
-      );
-      speedSelect.value = closest;
     }
+    // Set playback speed to original (1×)
+    playSpeed = originalImportedDelayMs;
+    $('playSpeed').value = '1';
     showFrameStrip();
   } else {
     hideFrameStrip();
@@ -1135,81 +1149,137 @@ function confirmExport() {
 }
 
 // GIF Speed modal
-let selectedSpeedMs = 100; // Default 1×
+let selectedSpeedMs = 100; // Frame delay in ms
+let selectedMultiplier = 1; // Speed multiplier (1 = original)
 let originalImportedDelayMs = 100; // Will be set from imageInfo
+let speedPreviewInterval = null;
+let speedPreviewFrameIndex = 0;
 
 function showSpeedModal() {
-  // Use playback speed as starting value
-  selectedSpeedMs = playSpeed;
+  // Start with original speed (1×)
+  selectedMultiplier = 1;
+  selectedSpeedMs = originalImportedDelayMs;
 
   const slider = $('speedSlider');
   const marker = $('speedMarker');
 
-  // Set slider value (inverted: low ms = fast, high ms = slow)
-  slider.value = selectedSpeedMs;
-  updateSpeedValue(selectedSpeedMs);
+  // Set slider to 1× (original)
+  slider.value = 1;
+  updateSpeedDisplay(1);
 
-  // Position the original speed marker
-  const originalMs = originalImportedDelayMs || 100;
-  const minMs = 20, maxMs = 500;
-  const clampedOriginal = Math.max(minMs, Math.min(maxMs, originalMs));
-  const markerPercent = ((clampedOriginal - minMs) / (maxMs - minMs)) * 100;
+  // Position the original speed marker at 1× position
+  // Slider range: 0.25 to 4, so 1 is at (1-0.25)/(4-0.25) = 20%
+  const markerPercent = ((1 - 0.25) / (4 - 0.25)) * 100;
   marker.style.left = `${markerPercent}%`;
-  marker.title = `Original: ${originalMs}ms`;
+  marker.title = `1× Original`;
 
-  // Show original speed on button
-  $('originalSpeedBtn').textContent = `Original (${originalMs}ms)`;
+  // Calculate and show original duration
+  const frameCount = imageInfo.frameCount || 1;
+  const originalDuration = (originalImportedDelayMs * frameCount / 1000).toFixed(1);
+  $('durationOriginal').textContent = `${originalDuration}s`;
+
+  // Reset loop toggle to checked
+  $('loopToggle').checked = true;
+
+  // Start preview animation
+  startSpeedPreview();
 
   $('speedModal').classList.add('on');
 }
 
 function hideSpeedModal(e) {
   if (!e || e.target === $('speedModal')) {
+    stopSpeedPreview();
     $('speedModal').classList.remove('on');
   }
 }
 
-function updateSpeedValue(ms) {
-  ms = parseInt(ms, 10);
-  selectedSpeedMs = ms;
+function startSpeedPreview() {
+  stopSpeedPreview();
 
-  $('speedValueMs').textContent = ms;
+  const preview = $('speedPreview');
+  if (!gifFrames.length) {
+    preview.innerHTML = '';
+    return;
+  }
 
-  // Calculate multiplier relative to 100ms baseline
-  const multiplier = (100 / ms).toFixed(1);
-  $('speedMultiplier').textContent = `(${multiplier}×)`;
+  // Create image element
+  const img = document.createElement('img');
+  const firstFrame = gifFrames[0]?.fullRes || gifFrames[0]?.thumbnail;
+  if (firstFrame) {
+    img.src = firstFrame;
+    preview.innerHTML = '';
+    preview.appendChild(img);
+  }
+
+  speedPreviewFrameIndex = 0;
+
+  // Start animation loop
+  function animatePreview() {
+    if (!$('speedModal').classList.contains('on')) return;
+
+    speedPreviewFrameIndex = (speedPreviewFrameIndex + 1) % gifFrames.length;
+    const frame = gifFrames[speedPreviewFrameIndex];
+    const frameSrc = frame?.fullRes || frame?.thumbnail;
+    if (frameSrc && img) {
+      img.src = frameSrc;
+    }
+
+    speedPreviewInterval = setTimeout(animatePreview, selectedSpeedMs);
+  }
+
+  speedPreviewInterval = setTimeout(animatePreview, selectedSpeedMs);
+}
+
+function stopSpeedPreview() {
+  if (speedPreviewInterval) {
+    clearTimeout(speedPreviewInterval);
+    speedPreviewInterval = null;
+  }
+}
+
+function restartSpeedPreview() {
+  // Restart with new speed
+  startSpeedPreview();
+}
+
+function updateSpeedFromSlider(mult) {
+  mult = parseFloat(mult);
+  updateSpeedDisplay(mult);
+  restartSpeedPreview();
+}
+
+function updateSpeedDisplay(mult) {
+  selectedMultiplier = mult;
+  // Calculate frame delay: higher multiplier = faster = lower delay
+  const originalMs = originalImportedDelayMs || 100;
+  selectedSpeedMs = Math.round(originalMs / mult);
+
+  // Display multiplier
+  $('speedDisplay').textContent = `${mult.toFixed(1)}×`;
+
+  // Calculate and show new duration
+  const frameCount = imageInfo.frameCount || 1;
+  const newDuration = (selectedSpeedMs * frameCount / 1000).toFixed(1);
+  $('durationNew').textContent = `${newDuration}s`;
 
   // Update active preset button
-  const presets = [200, 100, 50, 33];
-  document.querySelectorAll('.speed-preset:not(.original)').forEach(btn => {
-    const presetVal = parseInt(btn.textContent) === 1 ? 100 :
-                      btn.textContent === '0.5×' ? 200 :
-                      btn.textContent === '2×' ? 50 :
-                      btn.textContent === '3×' ? 33 : null;
-    btn.classList.toggle('active', presetVal === ms);
+  document.querySelectorAll('.speed-preset').forEach(btn => {
+    const btnMult = parseFloat(btn.dataset.mult);
+    btn.classList.toggle('active', Math.abs(mult - btnMult) < 0.05);
   });
-
-  // Check if it's original
-  const isOriginal = Math.abs(ms - originalImportedDelayMs) <= 2;
-  $('originalSpeedBtn').classList.toggle('active', isOriginal);
 }
 
-function setSpeedPreset(ms) {
-  $('speedSlider').value = ms;
-  updateSpeedValue(ms);
-}
-
-function setSpeedToOriginal() {
-  const ms = originalImportedDelayMs || 100;
-  // Clamp to slider range
-  const clampedMs = Math.max(20, Math.min(500, ms));
-  $('speedSlider').value = clampedMs;
-  updateSpeedValue(clampedMs);
+function setSpeedMultiplier(mult) {
+  $('speedSlider').value = mult;
+  updateSpeedDisplay(mult);
+  restartSpeedPreview();
 }
 
 function confirmSpeed() {
   hideSpeedModal();
-  exportAsGif(selectedSpeedMs);
+  const loop = $('loopToggle').checked;
+  exportAsGif(selectedSpeedMs, loop);
 }
 
 function togglePlayback() {
@@ -1226,39 +1296,65 @@ function startPlayback() {
   $('playBtn').textContent = '⏸';
   $('playBtn').classList.add('playing');
 
-  playInterval = setInterval(() => {
+  // Use recursive setTimeout to handle async frame loading
+  async function playNextFrame() {
+    if (!isPlaying) return;
+
     selectedFrameIndex = (selectedFrameIndex + 1) % gifFrames.length;
-    updatePlaybackFrame();
-  }, playSpeed);
+    await updatePlaybackFrame();
+
+    if (isPlaying) {
+      playInterval = setTimeout(playNextFrame, playSpeed);
+    }
+  }
+
+  playInterval = setTimeout(playNextFrame, playSpeed);
 }
 
 function stopPlayback() {
   isPlaying = false;
   if (playInterval) {
-    clearInterval(playInterval);
+    clearTimeout(playInterval);
     playInterval = null;
   }
   $('playBtn').textContent = '▶';
   $('playBtn').classList.remove('playing');
 }
 
-function setPlaySpeed(ms) {
-  playSpeed = parseInt(ms, 10);
+function setPlaySpeedMultiplier(mult) {
+  mult = parseFloat(mult);
+  // Calculate ms from multiplier (higher mult = faster = lower delay)
+  playSpeed = Math.round(originalImportedDelayMs / mult);
   if (isPlaying) {
     stopPlayback();
     startPlayback();
   }
 }
 
-function updatePlaybackFrame() {
+async function updatePlaybackFrame() {
   // Update thumbnail selection (no scrolling during playback - it's distracting)
   document.querySelectorAll('.frame-thumb').forEach((thumb, i) => {
     thumb.classList.toggle('selected', i === selectedFrameIndex);
   });
 
-  // Get the frame image from the strip (includes applied effects if active)
-  const frameThumb = document.querySelector(`.frame-thumb[data-index="${selectedFrameIndex}"] img`);
-  const frameSrc = frameThumb?.src || (gifFrames[selectedFrameIndex]?.thumbnail);
+  // Always use full-res frame - fetch if not cached
+  let frameSrc = gifFrames[selectedFrameIndex]?.fullRes;
+
+  if (!frameSrc) {
+    // Fetch full-res frame on demand
+    try {
+      const result = await postJson('/api/preview', { tools: [], frameIndex: selectedFrameIndex });
+      if (result.success && result.imageData) {
+        frameSrc = result.imageData;
+        if (gifFrames[selectedFrameIndex]) {
+          gifFrames[selectedFrameIndex].fullRes = frameSrc;
+        }
+      }
+    } catch (e) {
+      // Fall back to thumbnail only if fetch fails
+      frameSrc = gifFrames[selectedFrameIndex]?.thumbnail;
+    }
+  }
 
   if (frameSrc) {
     const img = pA.querySelector('img');
@@ -1302,6 +1398,23 @@ async function loadFrameThumbnails() {
       }
     } catch (e) {
       console.error('Failed to load frame', i, e);
+    }
+  }
+
+  // Load full-resolution frames in background for smooth playback
+  loadFullResFrames();
+}
+
+async function loadFullResFrames() {
+  for (let i = 0; i < imageInfo.frameCount; i++) {
+    try {
+      // Use preview API with no tools to get full-res frame
+      const result = await postJson('/api/preview', { tools: [], frameIndex: i });
+      if (result.success && result.imageData && gifFrames[i]) {
+        gifFrames[i].fullRes = result.imageData;
+      }
+    } catch (e) {
+      console.error('Failed to load full-res frame', i, e);
     }
   }
 }
@@ -1393,11 +1506,12 @@ async function exportAllFrames() {
   await runExport(opts, 'Exporting all frames...');
 }
 
-async function exportAsGif(speedMs = 100) {
+async function exportAsGif(speedMs = 100, loop = true) {
   const opts = getOptions();
   opts.exportMode = 'gif';
   // Convert ms to centiseconds for ImageMagick -delay
   opts.frameDelay = Math.round(speedMs / 10);
+  opts.loop = loop;
   await runExport(opts, 'Processing and exporting GIF...');
 }
 

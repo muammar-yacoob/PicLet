@@ -166,8 +166,9 @@ export async function scaleToSize(
 	size: number,
 ): Promise<boolean> {
 	try {
+		// Use Lanczos filter for best quality scaling, PNG32 for full color
 		await execAsync(
-			`convert "${inputPath}" -resize ${size}x${size} -background none -gravity center -extent ${size}x${size} "${outputPath}"`,
+			`convert "${inputPath}" -filter Lanczos -resize ${size}x${size} -background none -gravity center -extent ${size}x${size} -quality 100 "PNG32:${outputPath}"`,
 		);
 		return true;
 	} catch {
@@ -421,19 +422,20 @@ export async function extractFirstFrame(
 
 	try {
 		if (lowerPath.endsWith('.gif')) {
+			// Use PNG32 for full alpha support and -quality 100 for best quality
 			if (frameIndex === 0) {
 				// Frame 0 is always complete - no coalescing needed
-				await execAsync(`convert "${inputPath}[0]" "${outputPath}"`);
+				await execAsync(`convert "${inputPath}[0]" -quality 100 "PNG32:${outputPath}"`);
 			} else {
 				// Only load and coalesce frames 0 through frameIndex, then keep only the last one
 				// This is MUCH faster than coalescing all frames
 				await execAsync(
-					`convert "${inputPath}[0-${frameIndex}]" -coalesce -delete 0--2 "${outputPath}"`,
+					`convert "${inputPath}[0-${frameIndex}]" -coalesce -delete 0--2 -quality 100 "PNG32:${outputPath}"`,
 				);
 			}
 		} else {
 			// ICO files don't need coalescing
-			await execAsync(`convert "${inputPath}[${frameIndex}]" "${outputPath}"`);
+			await execAsync(`convert "${inputPath}[${frameIndex}]" -quality 100 "PNG32:${outputPath}"`);
 		}
 		return true;
 	} catch {
@@ -486,8 +488,24 @@ export async function getGifDelay(imagePath: string): Promise<number> {
  */
 export async function setGifDelay(imagePath: string, delayCentiseconds: number): Promise<boolean> {
 	try {
+		// Use mogrify for in-place modification with -delay before the file
 		await execAsync(
-			`convert "${imagePath}" -delay ${delayCentiseconds} "${imagePath}"`,
+			`mogrify -delay ${delayCentiseconds} "${imagePath}"`,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Set GIF loop count (0 = infinite loop, 1 = play once, etc.)
+ * Modifies the file in-place
+ */
+export async function setGifLoop(imagePath: string, loopCount: number): Promise<boolean> {
+	try {
+		await execAsync(
+			`mogrify -loop ${loopCount} "${imagePath}"`,
 		);
 		return true;
 	} catch {
@@ -513,8 +531,10 @@ export async function extractAllFrames(
 		// Extract frames with optimizations:
 		// - coalesce: properly handle delta-encoded frames
 		// - +adjoin: write frames directly to separate files (more efficient)
+		// - PNG32: full 32-bit RGBA for best quality
+		// - quality 100: maximum PNG compression quality
 		await execAsync(
-			`convert "${inputPath}" -coalesce +adjoin "${outputDir}/${baseName}-%04d.png"`,
+			`convert "${inputPath}" -coalesce -quality 100 +adjoin "PNG32:${outputDir}/${baseName}-%04d.png"`,
 		);
 
 		// Get list of created files

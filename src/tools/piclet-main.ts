@@ -28,6 +28,7 @@ import {
 	scaleToSize,
 	scaleWithPadding,
 	setGifDelay,
+	setGifLoop,
 	simplifyGif,
 	squarify,
 	trim,
@@ -1041,6 +1042,12 @@ async function processGifExport(
 				if (opts.frameDelay && opts.frameDelay > 0) {
 					logs.push({ type: 'info', message: `Setting frame delay to ${opts.frameDelay * 10}ms...` });
 					await setGifDelay(outputFile, opts.frameDelay);
+				}
+				// Apply loop setting (0 = infinite, 1 = no loop/play once)
+				if (typeof opts.loop === 'boolean') {
+					const loopCount = opts.loop ? 0 : 1;
+					logs.push({ type: 'info', message: opts.loop ? 'Setting to loop infinitely...' : 'Setting to play once (no loop)...' });
+					await setGifLoop(outputFile, loopCount);
 				}
 				return { success: true, output: basename(outputFile), outputPath: outputFile, logs };
 			}
