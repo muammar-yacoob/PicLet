@@ -276,9 +276,11 @@ async function processCombined(
 	let singleFilePath: string | undefined;
 	// Preserve GIF extension for animated files, use PNG for others
 	const outputExt = fileInfo.extension.toLowerCase() === '.gif' ? '.gif' : '.png';
+	const tempDir = tmpdir();
+	const ts = Date.now();
 
 	const makeTempPath = (suffix: string) => {
-		const p = `${fileInfo.dirname}/${fileInfo.filename}_${suffix}${outputExt}`;
+		const p = join(tempDir, `piclet-${ts}-${suffix}${outputExt}`);
 		temps.push(p);
 		return p;
 	};
@@ -334,7 +336,9 @@ async function processCombined(
 				// If this is the last tool, save output
 				if (activeTools.indexOf(tool) === activeTools.length - 1) {
 					const outDir = dirname(sourcePath || input);
-					const finalOut = join(outDir, `${sourceInfo.filename}_nobg${outputExt}`);
+					const dims = await getDimensions(current);
+					const dimStr = dims ? `-${dims[0]}x${dims[1]}` : '';
+					const finalOut = join(outDir, `${sourceInfo.filename}_nobg${dimStr}${outputExt}`);
 					moveFile(current, finalOut);
 					temps.splice(temps.indexOf(current), 1);
 					outputs.push(basename(finalOut));
@@ -375,7 +379,8 @@ async function processCombined(
 				// If this is the last tool, save output
 				if (activeTools.indexOf(tool) === activeTools.length - 1) {
 					const outDir = dirname(sourcePath || input);
-					const finalOut = join(outDir, `${sourceInfo.filename}_scaled${outputExt}`);
+					const dimStr = dims ? `-${dims[0]}x${dims[1]}` : '';
+					const finalOut = join(outDir, `${sourceInfo.filename}_scaled${dimStr}${outputExt}`);
 					moveFile(current, finalOut);
 					temps.splice(temps.indexOf(current), 1);
 					outputs.push(basename(finalOut));
@@ -566,7 +571,7 @@ async function processCombined(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function runGUI(inputRaw: string): Promise<boolean> {
-	const sourceFilePath = normalizePath(inputRaw);
+	let sourceFilePath = normalizePath(inputRaw);
 	let currentInput = sourceFilePath;
 
 	if (!existsSync(currentInput)) {
@@ -822,6 +827,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 				const originalDelayMs = newFrameCount > 1 ? (await getGifDelay(tempPath)) * 10 : 100;
 
 				// Update current image
+				// Note: Keep sourceFilePath pointing to original directory for exports
 				currentInput = tempPath;
 				currentBorderColor = newBorderColor;
 				currentFrameCount = newFrameCount;
@@ -961,7 +967,6 @@ async function processGifExport(
 			logs.push({ type: 'info', message: `Exporting frame ${frameIndex + 1}...` });
 
 			const frameOutDir = dirname(sourcePath || input);
-			const finalOutput = join(frameOutDir, `${sourceInfo.filename}_frame${frameIndex + 1}.png`);
 
 			// Extract frame directly to final location first
 			const frameFile = join(tempDir, `piclet-export-${ts}.png`);
@@ -969,6 +974,8 @@ async function processGifExport(
 				logs.push({ type: 'error', message: 'Failed to extract frame' });
 				return { success: false, error: 'Failed to extract frame', logs };
 			}
+
+			let sourceFile = frameFile;
 
 			// Apply tools if any
 			if (opts.tools && opts.tools.length > 0) {
@@ -981,12 +988,16 @@ async function processGifExport(
 					return { success: false, error: 'Processing failed', logs };
 				}
 
-				// Move processed file to final location
-				moveFile(result.singleFilePath, finalOutput);
-			} else {
-				// No tools - just move extracted frame
-				moveFile(frameFile, finalOutput);
+				sourceFile = result.singleFilePath;
 			}
+
+			// Get dimensions and create final filename
+			const dims = await getDimensions(sourceFile);
+			const dimStr = dims ? `-${dims[0]}x${dims[1]}` : '';
+			const finalOutput = join(frameOutDir, `${sourceInfo.filename}_frame${frameIndex + 1}${dimStr}.png`);
+
+			// Move to final location
+			moveFile(sourceFile, finalOutput);
 
 			logs.push({ type: 'success', message: `Exported frame ${frameIndex + 1}` });
 			return { success: true, output: basename(finalOutput), outputPath: finalOutput, logs };
@@ -1036,7 +1047,9 @@ async function processGifExport(
 			} else {
 				// No tools selected - just copy the GIF to source dir with speed applied
 				const outDir = dirname(sourcePath || input);
-				outputFile = join(outDir, `${sourceInfo.filename}_export.gif`);
+				const dims = await getDimensions(input);
+				const dimStr = dims ? `-${dims[0]}x${dims[1]}` : '';
+				outputFile = join(outDir, `${sourceInfo.filename}_export${dimStr}.gif`);
 				copyFileSync(input, outputFile);
 				logs.push({ type: 'success', message: 'Exported GIF' });
 			}
