@@ -343,12 +343,12 @@
           <div class="tool-opts">
             <div class="tool-row">
               <label>Width</label>
-              <input type="range" id="sc-w" min="16" max="512" value="512" oninput="scaleSlide('w')" onchange="schedulePreview()">
+              <input type="range" id="sc-w" min="16" max="1920" value="512" oninput="scaleSlide('w')" onchange="schedulePreview()">
               <span class="val" id="sc-wV">512px</span>
             </div>
             <div class="tool-row" id="sc-hRow">
               <label>Height</label>
-              <input type="range" id="sc-h" min="16" max="512" value="512" oninput="scaleSlide('h')" onchange="schedulePreview()">
+              <input type="range" id="sc-h" min="16" max="1920" value="512" oninput="scaleSlide('h')" onchange="schedulePreview()">
               <span class="val" id="sc-hV">512px</span>
             </div>
             <label class="opt"><input type="checkbox" id="sc-lock" onchange="toggleRatioLock()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Lock aspect ratio</label>
@@ -1032,9 +1032,9 @@ function updateImageInfo() {
   // Calculate aspect ratio
   aspectRatio = imageInfo.width / imageInfo.height;
 
-  // Set scale sliders max to image dimensions (can't upscale)
-  $('sc-w').max = imageInfo.width;
-  $('sc-h').max = imageInfo.height;
+  // Set scale sliders - allow canvas up to 1920x1920 (can add padding beyond image size)
+  $('sc-w').max = 1920;
+  $('sc-h').max = 1920;
   $('sc-w').value = imageInfo.width;
   $('sc-h').value = imageInfo.height;
   $('sc-wV').textContent = imageInfo.width + 'px';
