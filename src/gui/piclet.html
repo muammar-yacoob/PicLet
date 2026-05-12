@@ -17,6 +17,14 @@
     .preview-area::before{content:'';position:absolute;inset:0;background:repeating-conic-gradient(#1a1a1d 0% 25%, #222 0% 50%) 50%/16px 16px;z-index:0}
     .preview-area.dragover{border:2px dashed var(--acc);background:rgba(255,204,0,0.05)}
     .preview-area img{max-width:100%;max-height:100%;object-fit:contain;position:relative;z-index:1;transform-origin:center;cursor:grab}
+    .preview-area img.canvas-border{
+      --d:var(--acc);
+      background:
+        repeating-linear-gradient(90deg,var(--d) 0 14px,transparent 14px 22px) 0 0/100% 1.5px no-repeat,
+        repeating-linear-gradient(90deg,var(--d) 0 14px,transparent 14px 22px) 0 100%/100% 1.5px no-repeat,
+        repeating-linear-gradient(0deg,var(--d) 0 14px,transparent 14px 22px) 0 0/1.5px 100% no-repeat,
+        repeating-linear-gradient(0deg,var(--d) 0 14px,transparent 14px 22px) 100% 0/1.5px 100% no-repeat;
+      padding:1px}
     .preview-area img.panning{cursor:grabbing}
     .preview-area .placeholder{position:relative;z-index:1;font-size:11px;color:var(--txt3);text-align:center;padding:12px}
     .preview-area .mini-sp{width:20px;height:20px;border:2px solid var(--bg3);border-top-color:var(--acc);border-radius:50%;animation:s .5s linear infinite;position:relative;z-index:1}
@@ -77,6 +85,12 @@
     .tool-row select:hover{border-color:var(--acc)}
     .tool-row select:focus{outline:none;border-color:var(--acc)}
     .tool-row select option{background:var(--bg2);color:var(--txt);padding:8px}
+    .slider-wrap{position:relative;flex:1;display:flex;align-items:center}
+    .slider-wrap input[type="range"]{width:100%}
+    .slider-mark{position:absolute;top:-3px;width:2px;height:10px;background:var(--acc);pointer-events:none;transform:translateX(-50%);border-radius:1px}
+    .btn-reset{width:20px;height:20px;padding:0;background:none;border:1px solid var(--brd);border-radius:4px;color:var(--txt3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .btn-reset:hover{border-color:var(--acc);color:var(--acc)}
+    .btn-reset svg{width:12px;height:12px}
     .tool-opts .opt{font-size:10px;padding:2px 0}
     .tool-opts .opt .box{width:12px;height:12px}
 
@@ -343,16 +357,25 @@
           <div class="tool-opts">
             <div class="tool-row">
               <label>Width</label>
-              <input type="range" id="sc-w" min="16" max="1920" value="512" oninput="scaleSlide('w')" onchange="schedulePreview()">
+              <div class="slider-wrap" id="sc-w-wrap">
+                <input type="range" id="sc-w" min="16" max="1920" value="512" oninput="scaleSlide('w')" onchange="schedulePreview()">
+                <div class="slider-mark" id="sc-w-mark"></div>
+              </div>
               <span class="val" id="sc-wV">512px</span>
             </div>
-            <div class="tool-row" id="sc-hRow">
+            <div class="tool-row" id="sc-hRow" style="display:none">
               <label>Height</label>
-              <input type="range" id="sc-h" min="16" max="1920" value="512" oninput="scaleSlide('h')" onchange="schedulePreview()">
+              <div class="slider-wrap" id="sc-h-wrap">
+                <input type="range" id="sc-h" min="16" max="1920" value="512" oninput="scaleSlide('h')" onchange="schedulePreview()">
+                <div class="slider-mark" id="sc-h-mark"></div>
+              </div>
               <span class="val" id="sc-hV">512px</span>
             </div>
-            <label class="opt"><input type="checkbox" id="sc-lock" onchange="toggleRatioLock()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Lock aspect ratio</label>
-            <label class="opt"><input type="checkbox" id="sc-sq" onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Square output (add padding)</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <label class="opt" style="flex:1"><input type="checkbox" id="sc-lock" checked onchange="toggleRatioLock()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Lock aspect ratio</label>
+              <button class="btn-reset" onclick="resetScale()" title="Reset to original size"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 2v4h4"/><path d="M3.5 6A6 6 0 1 1 2 9.5"/></svg></button>
+            </div>
+            <label class="opt"><input type="checkbox" id="sc-sq" checked onchange="schedulePreview()"><span class="box"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></span>Square output (add padding)</label>
           </div>
         </div>
       </div>
@@ -758,6 +781,22 @@ function filterTools(ext) {
 let aspectRatio = 1;
 let scaleDebounce = null;
 
+function updateScaleMarks() {
+  const wSlider = $('sc-w'), hSlider = $('sc-h');
+  const wMark = $('sc-w-mark'), hMark = $('sc-h-mark');
+  const pct = (v, min, max) => ((v - min) / (max - min)) * 100;
+  wMark.style.left = pct(imageInfo.width, +wSlider.min, +wSlider.max) + '%';
+  hMark.style.left = pct(imageInfo.height, +hSlider.min, +hSlider.max) + '%';
+}
+
+function resetScale() {
+  $('sc-w').value = imageInfo.width;
+  $('sc-h').value = imageInfo.height;
+  $('sc-wV').textContent = imageInfo.width + 'px';
+  $('sc-hV').textContent = imageInfo.height + 'px';
+  schedulePreview();
+}
+
 function scaleSlide(dim) {
   const locked = $('sc-lock').checked;
   const w = $('sc-w'), h = $('sc-h');
@@ -908,6 +947,7 @@ async function generatePreview() {
     if (result.success && result.imageData) {
       const img = document.createElement('img');
       img.src = result.imageData;
+      if (activeTools.has('scale')) img.classList.add('canvas-border');
       pA.innerHTML = '';
       pA.appendChild(img);
       if (result.width && result.height) {
@@ -1039,6 +1079,7 @@ function updateImageInfo() {
   $('sc-h').value = imageInfo.height;
   $('sc-wV').textContent = imageInfo.width + 'px';
   $('sc-hV').textContent = imageInfo.height + 'px';
+  updateScaleMarks();
 }
 
 // ── GIF Frame Strip Functions ──

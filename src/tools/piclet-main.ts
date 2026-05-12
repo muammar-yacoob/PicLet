@@ -190,7 +190,7 @@ async function generateCombinedPreview(
 						const max = Math.max(scOpts.width, scOpts.height);
 						success = await scaleWithPadding(current, out, max, max);
 					} else {
-						success = await resize(current, out, scOpts.width, scOpts.height);
+						success = await scaleWithPadding(current, out, scOpts.width, scOpts.height);
 					}
 
 					if (!success) {
@@ -357,7 +357,7 @@ async function processCombined(
 					const max = Math.max(scOpts.width, scOpts.height);
 					success = await scaleWithPadding(current, out, max, max);
 				} else {
-					success = await resize(current, out, scOpts.width, scOpts.height);
+					success = await scaleWithPadding(current, out, scOpts.width, scOpts.height);
 				}
 
 				if (!success) {
@@ -572,12 +572,16 @@ async function processCombined(
 
 export async function runGUI(inputRaw: string): Promise<boolean> {
 	let sourceFilePath = normalizePath(inputRaw);
-	let currentInput = sourceFilePath;
 
-	if (!existsSync(currentInput)) {
-		error(`File not found: ${currentInput}`);
+	if (!existsSync(sourceFilePath)) {
+		error(`File not found: ${sourceFilePath}`);
 		return false;
 	}
+
+	// Copy source file to /tmp for fast local I/O (avoids slow WSL /mnt/ filesystem)
+	const localCopy = join(tmpdir(), `piclet-src-${Date.now()}${extname(sourceFilePath)}`);
+	copyFileSync(sourceFilePath, localCopy);
+	let currentInput = localCopy;
 
 	const dims = await getDimensions(currentInput);
 	if (!dims) {
@@ -672,7 +676,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 								current = tempOut;
 							}
 						} else {
-							if (await resize(current, tempOut, scOpts.width, scOpts.height)) {
+							if (await scaleWithPadding(current, tempOut, scOpts.width, scOpts.height)) {
 								current = tempOut;
 							}
 						}
@@ -715,7 +719,7 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 		}
 	}
 
-	return startGuiServer({
+	const result = await startGuiServer({
 		htmlFile: 'piclet.html',
 		title: 'PicLet',
 		imageInfo: {
@@ -934,6 +938,10 @@ export async function runGUI(inputRaw: string): Promise<boolean> {
 			}
 		},
 	});
+
+	// Clean up the local copy
+	cleanup(localCopy);
+	return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

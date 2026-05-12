@@ -190,7 +190,7 @@ export async function scaleWithPadding(
 		const coalesce = getCoalescePrefix(inputPath);
 		const gifSuffix = getGifOutputSuffix(outputPath);
 		await execAsync(
-			`convert "${inputPath}" ${coalesce}-resize ${width}x${height} -background none -gravity center -extent ${width}x${height}${gifSuffix} "${outputPath}"`,
+			`convert "${inputPath}" ${coalesce}-resize ${width}x${height}\\> -background none -gravity center -extent ${width}x${height}${gifSuffix} "${outputPath}"`,
 		);
 		return true;
 	} catch {
